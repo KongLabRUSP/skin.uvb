@@ -1,0 +1,13 @@
+---
+title: "Skin UVB SKH1 moue model treated with UA/SFN Tables"
+output: html_document
+---
+
+# Table1: number of significant genes at log2 change of 2 or more and q-value of 0.05 or less
+|Week   | Control (No UVB) vs. UVB| UVB vs. UVB+UA| UVB vs. UVB+SFN|
+|:------|------------------------:|--------------:|---------------:|
+|Week2  |                      549|            102|              48|
+|Week15 |                      379|              8|              12|
+|Week25 |                      525|             21|              13|
+|Final  |                      140|             13|               9|
+
