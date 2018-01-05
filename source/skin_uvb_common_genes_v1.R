@@ -24,12 +24,9 @@ dt15w
 dt25w <- fread("data/week25 gene_exp.diff")
 dt25w
 
+# NOTE: QC this input file!
 dtf<- fread("data/WeekFinal gene_exp.diff")
 dtf <- dtf[, 1:14]
-
-# dtf[, 8:13] <- apply(dtf[, 8:13],
-#                      MARGIN = 2,
-#                      FUN = "as.numeric")
 dtf$value_1 <- as.numeric(dtf$value_1)
 dtf$value_2 <- as.numeric(dtf$value_2)
 dtf$`log2(fold_change)` <- as.numeric(dtf$`log2(fold_change)`)
@@ -123,21 +120,6 @@ gf.uvb.sfn <- dtf$gene[dtf$sample_1 == "UVB" &
                         dtf$q_value <= 0.1]
 gf.uvb.sfn
 
-# g2w <- dt2w$gene[abs(dt2w$`log2(fold_change)`) >= 2 & 
-#                    dt2w$q_value <= 0.05]
-# g15w <- dt15w$gene[abs(dt15w$`log2(fold_change)`) >= 2 & 
-#                    dt15w$q_value <= 0.05]
-# g25w <- dt25w$gene[abs(dt25w$`log2(fold_change)`) >= 2 & 
-#                    dt25w$q_value <= 0.05]
-# gf <- dtf$gene[abs(dtf$`log2(fold_change)`) >= 2 & 
-#                    dtf$q_value <= 0.05]
-# 
-# # Genes in common----
-# gene.shared <- unique(g2w[g2w %in% g15w])
-# gene.shared <- unique(gene.shared[gene.shared %in% g25w])
-# gene.shared <- unique(gene.shared[gene.shared %in% gf])
-# gene.shared
-
 # Create a table of shared genes----
 genes <- data.table(all.signif = unique(c(g2w.ctrl.uvb,
                                           g2w.uvb.ua,
@@ -172,8 +154,9 @@ genes$gf.uvb.ua <- genes$all.signif %in% gf.uvb.ua
 genes$gf.uvb.sfn <- genes$all.signif %in% gf.uvb.sfn
 
 genes
-
-  
+write.csv(genes,
+          file = "tmp/genes_all.compar_all.time_log2.2_qval.0.1.csv",
+          row.names = FALSE)
 
 # Number of significant genes----
 t1 <- data.table(Week = rep(c("Week2",
@@ -195,6 +178,9 @@ t1$Comparison <- factor(t1$Comparison,
 t1 <- dcast.data.table(t1,
                        Week ~ Comparison)
 t1
+write.csv(t1,
+          file = "tmp/significant_gene_count_log2.2_qval.0.1.csv",
+          row.names = FALSE)
 kable(t1)
   # |Week   | Control (No UVB) vs. UVB| UVB vs. UVB+UA| UVB vs. UVB+SFN|
   # |:------|------------------------:|--------------:|---------------:|
@@ -204,7 +190,7 @@ kable(t1)
   # |Final  |                      140|             13|               9|
 
 # Venn diagrams----
-# a. Common genes by comparisons
+# a. Common genes by comparisons, all time poins together----
 ctrl.uvb <- unique(c(g2w.ctrl.uvb,
                      g15w.ctrl.uvb,
                      g25w.ctrl.uvb,
@@ -218,12 +204,6 @@ uvb.sfn <- unique(c(g2w.uvb.sfn,
                    g25w.uvb.sfn,
                    gf.uvb.sfn))
 
-sum(ctrl.uvb %in% uvb.ua)
-# 116 genes in common
-
-sum(ctrl.uvb %in% uvb.sfn)
-# 49 genes in common
-
 genes.compar <- data.table(all.signif = genes$all.signif)
 genes.compar$ctrl.uvb <- genes$all.signif %in% ctrl.uvb
 genes.compar$uvb.ua <- genes$all.signif %in% uvb.ua
@@ -233,7 +213,6 @@ genes.compar
 # Save gene list to CSV----
 tmp <- genes.compar
 colnames(tmp) <- c("All Significant Genes",
-                   
                    "Control (No UVB) vs. UVB",
                    "UVB vs. UVB+UA",
                    "UVB vs. UVB+SFN")
@@ -258,7 +237,7 @@ p1 <- venn.diagram(x = list(`Control (No UVB) vs. UVB` = ctrl.uvb,
                    width = 6,
                    main = "Significant genes, at least 4-fold change, q-value <= 0.05")
 
-# b. Common genes by time
+# b. Common genes by time, all comparisons together----
 w2 <- unique(c(g2w.ctrl.uvb,
                g2w.uvb.ua,
                g2w.uvb.sfn))
@@ -309,43 +288,122 @@ p2 <- venn.diagram(x = list(`Week2` = w2,
 # Write raw data to CSV, significant genes ONLY
 write.csv(dt2w[dt2w$gene %in% genes$all.signif, ],
           file = "tmp/dt2w_signif_genes.csv")
-write.csv(dt15w[dt2w$gene %in% genes$all.signif, ],
+write.csv(dt2w[dt15w$gene %in% genes$all.signif, ],
           file = "tmp/dt15w_signif_genes.csv")
 write.csv(dt2w[dt25w$gene %in% genes$all.signif, ],
           file = "tmp/dt25w_signif_genes.csv")
 write.csv(dt2w[dtf$gene %in% genes$all.signif, ],
           file = "tmp/dtf_signif_genes.csv")
 
+# c. Common genes by time within each comparison----
+p3.1 <- venn.diagram(x = list(`Control (No UVB) vs. UVB` = g2w.ctrl.uvb,
+                              `UVB vs. UVB+UA` = g2w.uvb.ua,
+                              `UVB vs. UVB+SFN` = g2w.uvb.sfn),
+                     col = c("red",
+                             "green",
+                             "blue"),
+                     compression = "lzw+p",
+                     filename = "tmp/venn3.1_w2.tiff",
+                     cat.just = list(c(0, 8),
+                                     c(1, 8),
+                                     c(0.5, -7)),
+                     units = 'in',
+                     height = 8,
+                     width = 8,
+                     main = "Significant genes, at least 4-fold change\nq-value <= 0.05, Week2 Only")
 
+p3.2 <- venn.diagram(x = list(`Control (No UVB) vs. UVB` = g15w.ctrl.uvb,
+                              `UVB vs. UVB+UA` = g15w.uvb.ua,
+                              `UVB vs. UVB+SFN` = g15w.uvb.sfn),
+                     col = c("red",
+                             "green",
+                             "blue"),
+                     compression = "lzw+p",
+                     filename = "tmp/venn3.2_w15.tiff",
+                     cat.just = list(c(0, 8),
+                                     c(1, 8),
+                                     c(0.5, -7)),
+                     units = 'in',
+                     height = 8,
+                     width = 8,
+                     main = "Significant genes, at least 4-fold change\nq-value <= 0.05, Week15 Only")
 
+p3.3 <- venn.diagram(x = list(`Control (No UVB) vs. UVB` = g25w.ctrl.uvb,
+                              `UVB vs. UVB+UA` = g25w.uvb.ua,
+                              `UVB vs. UVB+SFN` = g25w.uvb.sfn),
+                     col = c("red",
+                             "green",
+                             "blue"),
+                     compression = "lzw+p",
+                     filename = "tmp/venn3.3_w2.tiff",
+                     cat.just = list(c(0, 8),
+                                     c(1, 8),
+                                     c(0.5, -7)),
+                     units = 'in',
+                     height = 8,
+                     width = 8,
+                     main = "Significant genes, at least 4-fold change\nq-value <= 0.05, Week25 Only")
 
+p3.4 <- venn.diagram(x = list(`Control (No UVB) vs. UVB` = gf.ctrl.uvb,
+                              `UVB vs. UVB+UA` = gf.uvb.ua,
+                              `UVB vs. UVB+SFN` = gf.uvb.sfn),
+                     col = c("red",
+                             "green",
+                             "blue"),
+                     compression = "lzw+p",
+                     filename = "tmp/venn3.4_w2.tiff",
+                     cat.just = list(c(0, 8),
+                                     c(1, 8),
+                                     c(0.5, -7)),
+                     units = 'in',
+                     height = 8,
+                     width = 8,
+                     main = "Significant genes, at least 4-fold change\nq-value <= 0.05, Final Week Only")
 
+# d. Common genes by time within each timepoint----
+p4.1 <- venn.diagram(x = list(`Week2` = g2w.ctrl.uvb,
+                              `Week15` = g15w.ctrl.uvb,
+                              `Week25` = g25w.ctrl.uvb,
+                              `Final Week` = gf.ctrl.uvb),
+                     col = c("red",
+                             "green",
+                             "blue",
+                             "black"),
+                     compression = "lzw+p",
+                     filename = "tmp/venn4.1_ctrl.uvb.tiff",
+                     units = 'in',
+                     height = 8,
+                     width = 8,
+                     main = "Significant genes, at least 4-fold change\nq-value <= 0.05, Control (No UVB) vs. UVB Only")
 
-# c. Common genes by time within each comparison
-p3 <- venn.diagram(x = list(`Control (No UVB) vs. UVB` = g2w.ctrl.uvb,
-                            `UVB vs. UVB+UA` = g2w.uvb.ua,
-                            `UVB vs. UVB+SFN` = g2w.uvb.sfn),
-                   col = c("red",
-                           "green",
-                           "blue"),
-                   compression = "lzw+p",
-                   filename = "tmp/venn3_w2.tiff",
-                   cat.just = list(c(0, 8),
-                                   c(1, 8),
-                                   c(0.5, -7)),
-                   units = 'in',
-                   height = 8,
-                   width = 8,
-                   main = "Significant genes, at least 4-fold change\nq-value <= 0.05, Week2 Only")
+p4.2 <- venn.diagram(x = list(`Week2` = g2w.uvb.ua,
+                              `Week15` = g15w.uvb.ua,
+                              `Week25` = g25w.uvb.ua,
+                              `Final Week` = gf.uvb.ua),
+                     col = c("red",
+                             "green",
+                             "blue",
+                             "black"),
+                     compression = "lzw+p",
+                     filename = "tmp/venn4.2_ctrl.uvb.tiff",
+                     units = 'in',
+                     height = 8,
+                     width = 8,
+                     main = "Significant genes, at least 4-fold change\nq-value <= 0.05, UVB vs. UVB+UA Only")
 
-# Write raw data to CSV, significant genes ONLY
-write.csv(dt2w[dt2w$gene %in% genes$all.signif, ],
-          file = "tmp/dt2w_signif_genes.csv")
-write.csv(dt15w[dt2w$gene %in% genes$all.signif, ],
-          file = "tmp/dt15w_signif_genes.csv")
-write.csv(dt2w[dt25w$gene %in% genes$all.signif, ],
-          file = "tmp/dt25w_signif_genes.csv")
-write.csv(dt2w[dtf$gene %in% genes$all.signif, ],
-          file = "tmp/dtf_signif_genes.csv")
+p4.3 <- venn.diagram(x = list(`Week2` = g2w.uvb.sfn,
+                              `Week15` = g15w.uvb.sfn,
+                              `Week25` = g25w.uvb.sfn,
+                              `Final Week` = gf.uvb.sfn),
+                     col = c("red",
+                             "green",
+                             "blue",
+                             "black"),
+                     compression = "lzw+p",
+                     filename = "tmp/venn4.3_ctrl.uvb.tiff",
+                     units = 'in',
+                     height = 8,
+                     width = 8,
+                     main = "Significant genes, at least 4-fold change\nq-value <= 0.05, UVB vs. UVB+SFN Only")
 
 # sink()

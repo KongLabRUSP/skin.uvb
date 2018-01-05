@@ -1,5 +1,5 @@
 ---
-title: "Skin UVB SKH1 moue model treated with UA/SFN Tables"
+title: "Skin UVB SKH1 mouse model treated with UA/SFN Tables"
 output: html_document
 ---
 
@@ -10,4 +10,3 @@ output: html_document
 |Week15 |                      379|              8|              12|
 |Week25 |                      525|             21|              13|
 |Final  |                      140|             13|               9|
-
