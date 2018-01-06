@@ -16,3 +16,15 @@ output: html_document
 |:-----|------:|-------:|--------:|---:|------:|-------:|
 |FALSE |      6|       6|        6|   0|      0|       5|
 |TRUE  |      0|       0|        0|  26|     26|      20|
+
+# Table 3: Number of tumors per group at Week 22
+|      | No UVB| UA only| SFN only| UVB| UVB+UA| UVB+SFN|
+|:-----|------:|-------:|--------:|---:|------:|-------:|
+|FALSE |      6|       6|        6|   1|      5|       5|
+|TRUE  |      0|       0|        0|  25|     21|      20|
+
+# Table 4: Number of tumors per group at Week 20
+|      | No UVB| UA only| SFN only| UVB| UVB+UA| UVB+SFN|
+|:-----|------:|-------:|--------:|---:|------:|-------:|
+|FALSE |     10|      10|       10|  13|     15|      24|
+|TRUE  |      0|       0|        0|  19|     17|       7|

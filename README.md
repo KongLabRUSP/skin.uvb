@@ -5,6 +5,9 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
+### 01/06/2017
+* Added analysis for weeks 20 and 22
+
 ### 01/04/2018
 * Added script and results for tumor data analysis
 
