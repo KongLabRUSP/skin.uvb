@@ -624,6 +624,13 @@ m2 <- lm(Number ~ Group,
 m2
 summary(m2)
 
+# Poisson distribution for counts----
+m2.1 <- glm(Number ~ Group,
+            data = dt20trt,
+            family = "poisson")
+m2.1
+summary(m2.1)
+
 # Average tumor volume (log-transformed)----
 p6 <- ggplot(data = dt20,
              aes(x = Group,
