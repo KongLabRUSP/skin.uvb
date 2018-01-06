@@ -10,3 +10,9 @@ output: html_document
 |Week15 |                      379|              8|              12|
 |Week25 |                      525|             21|              13|
 |Final  |                      140|             13|               9|
+
+# Table 2: Number of tumors per group at Week 24
+|      | No UVB| UA only| SFN only| UVB| UVB+UA| UVB+SFN|
+|:-----|------:|-------:|--------:|---:|------:|-------:|
+|FALSE |      6|       6|        6|   0|      0|       5|
+|TRUE  |      0|       0|        0|  26|     26|      20|

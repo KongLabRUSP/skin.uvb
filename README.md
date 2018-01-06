@@ -5,6 +5,9 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
+### 01/04/2018
+* Added script and results for tumor data analysis
+
 ### 12/15/2017
 * Added Venn diagrams within each timepoint and within each comparison    
 
