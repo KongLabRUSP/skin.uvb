@@ -1,0 +1,107 @@
+Anne RNA seq time point analysis:
+
+## Create path constants and change working directory
+### Gene annotation file
+GENE_ANNO="/home/administrator/Documents/mm9.2_for_bismark/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Annotation/Genes/genes.gtf"
+echo $GENE_ANNO
+
+### Gene reference files
+GENE_REF="/home/administrator/Documents/mm9.2_for_bismark/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Sequence/Bowtie2Index/genome"
+echo $GENE_REF
+
+*********************************************************
+for No-UVB group
+
+### Home directory
+HOME_DIR="/home/administrator/Documents/Anne_RNASeq_05302017/BAM_Files/No_UVB"
+$HOME_DIR
+cd $HOME_DIR
+
+### Run cuffdiff
+cuffdiff \
+-p 4 \
+-o $HOME_DIR"Docs/No_UVB" \
+--no-update-check \
+-L Week2,Week15,Week25,Weekfinal \
+$GENE_ANNO \
+Week2S1.bam.prefix.bam,Week2S2.bam.prefix.bam \
+Week15S9.bam.prefix.bam,Week15S10.bam.prefix.bam \
+Week25S1.bam.prefix.bam,Week25S2.bam.prefix.bam \
+WeekfinalS9.bam.prefix.bam,WeekfinalS10.bam.prefix.bam
+
+*******************************************************************
+For UVB group
+
+### Home directory
+HOME_DIR="/home/administrator/Documents/Anne_RNASeq_05302017/"
+$HOME_DIR
+
+cd $HOME_DIR/BAM_Files/UVB/
+
+### Run cuffdiff
+cuffdiff \
+-p 4 \
+-o $HOME_DIR"Docs/UVB" \
+--no-update-check \
+-L Week2,Week15,Week25,Weekfinal \
+$GENE_ANNO \
+Week2S3.bam.prefix.bam,Week2S4.bam.prefix.bam \
+Week15S11.bam.prefix.bam,Week15S12.bam.prefix.bam \
+Week25S3.bam.prefix.bam,Week25S4.bam.prefix.bam \
+WeekfinalS11.bam.prefix.bam,WeekfinalS12.bam.prefix.bam
+
+********************************************************************
+For UA group
+
+###New terminal REFGENE and ANNO
+
+### Home directory
+HOME_DIR="/home/administrator/Documents/Anne_RNASeq_05302017/"
+$HOME_DIR
+
+cd $HOME_DIR/BAM_Files/UA/
+
+### Run cuffdiff
+cuffdiff \
+-p 2 \
+-o $HOME_DIR"Docs/UA" \
+--no-update-check \
+-L Week2,Week15,Week25,Weekfinal \
+$GENE_ANNO \
+Week2S5.bam.prefix.bam,Week2S6.bam.prefix.bam \
+Week15S13.bam.prefix.bam,Week15S14.bam.prefix.bam \
+Week25S5.bam.prefix.bam,Week25S6.bam.prefix.bam \
+WeekfinalS13.bam.prefix.bam,WeekfinalS14.bam.prefix.bam
+
+*************************************************************************
+For SFN group
+
+###New terminal REFGENE and ANNO
+
+### Home directory
+HOME_DIR="/home/administrator/Documents/Anne_RNASeq_05302017/"
+$HOME_DIR
+
+cd $HOME_DIR/BAM_Files/SFN/
+
+### Run cuffdiff
+cuffdiff \
+-p 2 \
+-o $HOME_DIR"Docs/SFN" \
+--no-update-check \
+-L Week2,Week15,Week25,Weekfinal \
+$GENE_ANNO \
+Week2S7.bam.prefix.bam,Week2S8.bam.prefix.bam \
+Week15S15.bam.prefix.bam,Week15S16.bam.prefix.bam \
+Week25S7.bam.prefix.bam,Week25S8.bam.prefix.bam \
+WeekfinalS15.bam.prefix.bam,WeekfinalS16.bam.prefix.bam
+
+
+
+
+
+
+
+
+
+

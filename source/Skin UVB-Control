@@ -1,0 +1,28 @@
+# Align: open a new terminal
+
+## Create path constants and change working directory
+### Gene annotation file
+GENE_ANNO="/home/administrator/Documents/mm9.2_for_bismark/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Annotation/Genes/genes.gtf"
+$GENE_ANNO
+
+### Gene reference files
+GENE_REF="/home/administrator/Documents/mm9.2_for_bismark/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Sequence/Bowtie2Index/genome"
+$GENE_REF
+
+### Home directory
+HOME_DIR="/home/administrator/Documents/Anne_RNASeq_05302017/UVB-Control"
+$HOME_DIR
+cd $HOME_DIR
+
+Since we have alread have BAM Files sorted and filtter
+
+# Run cuffdiff
+cuffdiff \
+-p 16 \
+-o $HOME_DIR\
+--no-update-check \
+-L Week2 UVB-Control \
+$GENE_ANNO \
+Wk2NonUVB-1.bam,Wk2NonUVB-2 \
+Wk2UVB-1.bam,Wk2UVB-2.bam \
+

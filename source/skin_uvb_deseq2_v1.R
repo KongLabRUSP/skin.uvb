@@ -10,11 +10,8 @@ require(glmmADMB)
 set.seed(1000)
 
 # Load data----
-dt1 <- fread("data/Kong Lab-UVB skin study.csv")
+dt1 <- fread("data/renyi_dedup_rnaseq_data/featurescounts_uvb-skin_dedup_renyi_2-9-2018.csv")
 dt1
-
-dt2w <- fread("data/week2 gene_exp.diff")
-
 
 ### Differential expression analysis based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution (R package *DESeq2*)
 

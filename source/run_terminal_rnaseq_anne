@@ -1,0 +1,354 @@
+# Reference library:
+​​# Reference genome by Illumina (not used here):
+https://support.This project does not overlap with my work at Johnson & Johnsonillumina.com/sequencing/sequencing_software/igenome.html
+
+# Most common version is  mouse-UCSC-mm9， here is the link (used here):
+ftp://igenome:G3nom3s4u@ussd-ftp.illumina.com/Mus_musculus/UCSC/mm9/Mus_musculus_UCSC_mm9.tar.gz
+
+# View reference files
+# Annotation source:
+# /media/administrator/MS Words & Powerpoint/Davit MethylSeq/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Annotation/Genes
+more /home/kong_lab/Documents/Davit/mm9.2_for_bismark/genes.gtf
+
+# Reference genome source: 
+# /home/administrator/Documents/mm9.2_for_bismark/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Sequence/Bowtie2Index
+more /home/administrator/Documents/mm9.2_for_bismark/genome.fa
+
+# This script is based on John Gaspar's RNA-seq script:
+/media/kong_lab/MS Words & Powerpoint/From Isilon/Kong/RNASeq/Kong_RNAseq/scripts
+#********************************************************************
+
+Procedure:
+
+1. Download FastQ files from:
+https://cloudbox.dls.rutgers.edu/?ShareToken=F629ADED27919D58ABF3AFD54856BB821F96AE77
+
+2. Use FastQC software to check the quality of the reads
+
+#********************************************************************
+# Align: open a new terminal
+
+## Create path constants and change working directory
+### Gene annotation file
+GENE_ANNO="/home/administrator/Documents/mm9.2_for_bismark/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Annotation/Genes/genes.gtf"
+$GENE_ANNO
+
+### Gene reference files
+GENE_REF="/home/administrator/Documents/mm9.2_for_bismark/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Sequence/Bowtie2Index/genome"
+$GENE_REF
+
+### Home directory
+HOME_DIR="/home/administrator/Documents/Anne_RNASeq_05302017/"
+$HOME_DIR
+
+#********************************************************************
+# a. Week 2 Data
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S1/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_No_UVB-1_S1_R1_001.fastq.gz"
+
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S2/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_No_UVB-2_S2_R1_001.fastq.gz"
+
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S3/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_UVB-1_S3_R1_001.fastq.gz"
+
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S4/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_UVB-2_S4_R1_001.fastq.gz"
+
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S5/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_UVB_UA-1_S5_R1_001.fastq.gz"
+
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S6/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_UVB_UA-2_S6_R1_001.fastq.gz"
+
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S7/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_UVB_SFN-1_S7_R1_001.fastq.gz"
+
+tophat2 -G $GENE_ANNO \
+-p 16 -o $HOME_DIR"BAM_Files/S8/" \
+$GENE_REF \
+$HOME_DIR"FastQ_Files/2w_UVB_SFN-2_S8_R1_001.fastq.gz"
+
+# Change home directory
+cd $HOME_DIR/FastQ_Files/Week2/
+
+# Run tophat in the loop
+find *.gz \
+-exec tophat2 \
+-G $GENE_ANNO \
+-p 16 \
+-o {}.out \
+$GENE_REF {} \;
+
+# Sort and index
+find $HOME_DIR/BAM_Files/Week2/*.bam \
+-exec samtools sort -@ 16 {} {}.prefix \;
+
+# (extra step) Move all .prefix files to an "index" subfolder
+find $HOME_DIR/BAM_Files/Week2/index/*.bam \
+-exec samtools index {} \;
+
+# Open the files in Integrated Genomics Viewer (IGV):
+# Go To: "/home/administrator/Documents"; Click On: "igv_hm.jnlp"
+
+# Source: http://cole-trapnell-lab.github.io/cufflinks/cuffdiff/
+# Differences in RNA expresions
+
+# Change working directory
+cd $HOME_DIR/BAM_Files/Week2/index/
+
+# Run cuffdiff
+cuffdiff \
+-p 16 \
+-o $HOME_DIR"Docs/Week2" \
+--no-update-check \
+-L Control,UVB,UA,SFN \
+$GENE_ANNO \
+S1.bam.prefix.bam,S2.bam.prefix.bam \
+S3.bam.prefix.bam,S4.bam.prefix.bam \
+S5.bam.prefix.bam,S6.bam.prefix.bam \
+S7.bam.prefix.bam,S8.bam.prefix.bam
+
+#********************************************************************
+### b. Week 15 Data
+cd $HOME_DIR/FastQ_Files/Week15/
+find *.gz \
+-exec tophat2 \
+-G $GENE_ANNO \
+-p 16 \
+-o {}.out \
+$GENE_REF {} \;
+
+#note: put echo in front of $GENE_ANNO and $GENE_REF
+(6/15/2017, done)
+
+# Sort and index
+find $HOME_DIR/BAM_Files/Week15/*.bam \
+-exec samtools sort -@ 8 {} {}.prefix \;
+(6-19-2017, 11:00)
+
+# (extra step) Move all .prefix files to an "index" subfolder
+find $HOME_DIR/BAM_Files/Week15/index/*.prefix.bam \
+-exec samtools index {} \;
+
+#Optinal: 
+#Open the files in Integrated Genomics Viewer (IGV):
+# Go To: "/home/administrator/Documents"; Click On: "igv_hm.jnlp"
+
+# Source: http://cole-trapnell-lab.github.io/cufflinks/cuffdiff/
+# Differences in RNA expresions
+
+# Change working directory
+cd $HOME_DIR/BAM_Files/Week15/index/
+
+# Run cuffdiff
+cuffdiff \
+-p 16 \
+-o $HOME_DIR"Docs" \
+--no-update-check \
+-L Control,UVB,UA,SFN \
+$GENE_ANNO \
+S9.bam.prefix.bam,S10.bam.prefix.bam \
+S11.bam.prefix.bam,S12.bam.prefix.bam \
+S13.bam.prefix.bam,S14.bam.prefix.bam \
+S15.bam.prefix.bam,S16.bam.prefix.bam
+
+#Note: bam.prefix.bam files has to be named as S1, S2, otherwise change the name to match the comparison.
+(6-19-2017)
+#********************************************************************
+## c. Week 25 Data
+cd $HOME_DIR/FastQ_Files/Week25/
+find *.gz \
+-exec tophat2 \
+-G $GENE_ANNO \
+-p 16 \
+-o {}.out \
+$GENE_REF {} \;
+
+(6-15-2017)
+
+#Sort and index
+find $HOME_DIR/BAM_Files/Week25/*.bam \
+-exec samtools sort -@ 8 {} {}.prefix \;
+
+(6-22-2017)
+
+# (extra step) Move all .prefix files to an "index" subfolder
+find $HOME_DIR/BAM_Files/Week2/index/*.bam \
+-exec samtools index {} \;
+
+# Open the files in Integrated Genomics Viewer (IGV):
+# Go To: "/home/administrator/Documents"; Click On: "igv_hm.jnlp"
+
+# Source: http://cole-trapnell-lab.github.io/cufflinks/cuffdiff/
+# Differences in RNA expresions
+
+# Change working directory
+cd $HOME_DIR/BAM_Files/Week25/index/
+
+# Run cuffdiff
+cuffdiff \
+-p 16 \
+-o $HOME_DIR"Docs/Week25" \
+--no-update-check \
+-L Control,UVB,UA,SFN \
+$GENE_ANNO \
+S1.bam.prefix.bam,S2.bam.prefix.bam \
+S3.bam.prefix.bam,S4.bam.prefix.bam \
+S5.bam.prefix.bam,S6.bam.prefix.bam \
+S7.bam.prefix.bam,S8.bam.prefix.bam
+
+6-22-2017 done
+
+********************************************************************************************
+### d. Week Final Data
+
+cd $HOME_DIR/FastQ_Files/WeekFinal/
+find *.gz \
+-exec tophat2 \
+-G $GENE_ANNO \
+-p 8 \
+-o {}.out \
+$GENE_REF {} \;
+
+#Sort and index
+find $HOME_DIR/BAM_Files/WeekFinal/*.bam \
+-exec samtools sort -@ 16 {} {}.prefix \;
+
+(6-22-2017)
+
+# (extra step) Move all .prefix files to an "index" subfolder
+find $HOME_DIR/BAM_Files/WeekFinal/index/*.bam \
+-exec samtools index {} \;
+
+# Change working directory
+cd $HOME_DIR/BAM_Files/WeekFinal/index/
+
+# Run cuffdiff
+cuffdiff \
+-p 16 \
+-o $HOME_DIR"Docs/WeekFinal" \
+--no-update-check \
+-L Control,UVB,UA,SFN \
+$GENE_ANNO \
+S9.bam.prefix.bam,S10.bam.prefix.bam \
+S11.bam.prefix.bam,S12.bam.prefix.bam \
+S13.bam.prefix.bam,S14.bam.prefix.bam \
+S15.bam.prefix.bam,S16.bam.prefix.bam
+
+6-22-2017
+
+********************************************************************************************
+### d. Week Final Data
+cd $HOME_DIR/FastQ_Files/WeekFinal/
+find *.gz \
+-exec tophat2 \
+-G $GENE_ANNO \
+-p 8 \
+-o {}.out \
+$GENE_REF {} \;
+
+
+#Sort and index
+find $HOME_DIR/BAM_Files/Week25/*.bam \
+-exec samtools sort -@ 8 {} {}.prefix \;
+
+(6-22-2017)
+
+# (extra step) Move all .prefix files to an "index" subfolder
+find $HOME_DIR/BAM_Files/Week2/index/*.bam \
+-exec samtools index {} \;
+
+
+# Change working directory
+cd $HOME_DIR/BAM_Files/WeekFinal/index/
+
+# Run cuffdiff
+cuffdiff \
+-p 16 \
+-o $HOME_DIR"Docs/WeekFinal" \
+--no-update-check \
+-L Control,UVB,UA,SFN \
+$GENE_ANNO \
+S9.bam.prefix.bam,S10.bam.prefix.bam \
+S11.bam.prefix.bam,S12.bam.prefix.bam \
+S13.bam.prefix.bam,S14.bam.prefix.bam \
+S15.bam.prefix.bam,S16.bam.prefix.bam
+
+6-26-2017
+
+#********************************************************************
+# Source: http://cole-trapnell-lab.github.io/cufflinks/cuffdiff/
+# Differences in RNA expresions (Run 1 at a time OR 
+# output to separate directories (option '-o')
+cuffdiff \
+-p 16 -o $HOME_DIR"Docs" --no-update-check -L Control,AOM+DSS,AOM+DSS+Cur \
+$GENE_ANNO \
+$HOME_DIR"BAM_Files/johns/C1.prefix.bam",$HOME_DIR"BAM_Files/johns/C20.prefix.bam" \
+$HOME_DIR"BAM_Files/johns/C26.prefix.bam",$HOME_DIR"BAM_Files/johns/C29.prefix.bam" \
+$HOME_DIR"BAM_Files/johns/C42.prefix.bam",$HOME_DIR"BAM_Files/johns/C46.prefix.bam"
+
+
+
+
+#********************************************************************
+# Source: http://cole-trapnell-lab.github.io/cufflinks/cuffdiff/
+# Differences in RNA expresions (Run 1 at a time OR 
+# output to separate directories (option '-o')
+cuffdiff \
+-p 16 -o $HOME_DIR"Docs" --no-update-check -L Control,AOM+DSS,AOM+DSS+Cur \
+$GENE_ANNO \
+$HOME_DIR"BAM_Files/johns/C1.prefix.bam",$HOME_DIR"BAM_Files/johns/C20.prefix.bam" \
+$HOME_DIR"BAM_Files/johns/C26.prefix.bam",$HOME_DIR"BAM_Files/johns/C29.prefix.bam" \
+$HOME_DIR"BAM_Files/johns/C42.prefix.bam",$HOME_DIR"BAM_Files/johns/C46.prefix.bam"
+
+
+
+#********************************************************************
+# Source: http://cole-trapnell-lab.github.io/cufflinks/cuffdiff/
+# Differences in RNA expresions (Run 1 at a time OR 
+# output to separate directories (option '-o')
+cuffdiff \
+-p 16 -o $HOME_DIR"Docs" --no-update-check -L Control,AOM+DSS,AOM+DSS+Cur \
+$GENE_ANNO \
+$HOME_DIR"BAM_Files/johns/C1.prefix.bam",$HOME_DIR"BAM_Files/johns/C20.prefix.bam" \
+$HOME_DIR"BAM_Files/johns/C26.prefix.bam",$HOME_DIR"BAM_Files/johns/C29.prefix.bam" \
+$HOME_DIR"BAM_Files/johns/C42.prefix.bam",$HOME_DIR"BAM_Files/johns/C46.prefix.bam"
+
+#********************************************************************
+# Compute diffeences
+cuffdiff -p 6 -o \
+/home/kong_lab/Documents/Davit/Yue_RNA/CuffDiff \
+--no-update-check -L \
+Control,AOM+DSS,AOM+DSS+Cur \
+/home/kong_lab/Documents/Davit/mm9.2_for_bismark/genes.gtf \
+/home/kong_lab/Documents/Davit/Yue_RNA/FastQ_Neg_Ctrl_18w/Negative_Control_18wk_out/accepted_hits.bam \
+/home/kong_lab/Documents/Davit/Yue_RNA/FastQ_AOM_DSS_18w/AOM_DSS_18w_out/accepted_hits.bam \
+/home/kong_lab/Documents/Davit/Yue_RNA/FastQ_AOM_DSS_Cur_18w/AOM_DSS_Cur_18w_out/accepted_hits.bam
+
+
+
+/share/data/kong/Kong_RNAseq/results/B3_S1_L001_R1_001_out/accepted_hits.bam,\
+/share/data/kong/Kong_RNAseq/results/B4_S2_L001_R1_001_out/accepted_hits.bam \
+/share/data/kong/Kong_RNAseq/results/B17_S3_L001_R1_001_out/accepted_hits.bam,\
+/share/data/kong/Kong_RNAseq/results/B24_S4_L001_R1_001_out/accepted_hits.bam \
+/share/data/kong/Kong_RNAseq/results/B36_S5_L001_R1_001_out/accepted_hits.bam,\
+/share/data/kong/Kong_RNAseq/results/B41_S6_L001_R1_001_out/accepted_hits.bam \
+/share/data/kong/Kong_RNAseq/results/B60_S7_L001_R1_001_out/accepted_hits.bam,\
+/share/data/kong/Kong_RNAseq/results/B65_S8_L001_R1_001_out/accepted_hits.bam \
+/share/data/kong/Kong_RNAseq/results/B74_S9_L001_R1_001_out/accepted_hits.bam,\
+/share/data/kong/Kong_RNAseq/results/B79_S10_L001_R1_001_out/accepted_hits.bam 
