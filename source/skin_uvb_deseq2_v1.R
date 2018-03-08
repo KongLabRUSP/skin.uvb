@@ -209,7 +209,8 @@ resultsNames(dds)
 pc_nc <- results(dds,
                  name = "trt_pc_vs_ng")
 
-t1 <- data.table(do.call("cbind", 
+t1 <- data.table(gene = rownames(pc_nc),
+                 do.call("cbind", 
                          pc_nc@listData))
 write.csv(t1,
           file = "tmp/pc_vs_nc.csv",
