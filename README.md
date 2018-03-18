@@ -5,6 +5,9 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
+### 03/17/2018
+* Added Methyl-seq analysis with package DSS (*skin_uvb_methylseq_dss_v1.R*)
+
 ### 03/10/2018
 * Added RNA-seq data analysis with DESeq2
 
