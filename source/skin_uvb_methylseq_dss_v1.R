@@ -29,10 +29,6 @@ require(TxDb.Mmusculus.UCSC.mm10.knownGene)
 require(DSS)
 require(bsseq)
 
-# require(DESeq2)
-# require(readxl)
-# require(BiocParallel)
-
 # Load and view raw counts (no annoation)----
 dt01 <- fread("data/renyi_methylseq_02092018/combined_dmr_default__uvb-skin_renyi_02092018.csv")
 dt01
@@ -58,16 +54,26 @@ t1$Feature <- factor(t1$Feature,
                      levels = as.character(t1$Feature[order(t1$Frequency,
                                                             decreasing = TRUE)]))
 t1
-ggplot(t1,
-       aes(x = "",
-           y = Frequency,
-           fill = Feature)) +
+p1 <- ggplot(t1,
+             aes(x = "",
+                 y = Frequency,
+                 fill = Feature)) +
   geom_bar(width = 1, 
            stat = "identity") +
   coord_polar("y",
               start = 0,
               direction = -1) +
   ggtitle("Annotation by Region (%)")
+p1 
+
+tiff(filename = "tmp/skin_uvb_ua.vs.pc.tiff",
+     height = 10,
+     width = 10,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
+graphics.off()
 
 # # NOTE: mitochondrial DNA (chrM) already not mapped.
 # #       Also, chrX = 20 and chrY = 21. Compare below:
@@ -100,6 +106,7 @@ dt1 <- data.table(gene = dt1$SYMBOL,
                   dt1[, X25t_UVB_0.N:X25w_SFN_1.X],
                   dt1[, X25w_UVB_0.N:X25w_UVB_1.X],
                   geneName = dt1$GENENAME)
+dt1
 
 # Regions----
 kable(data.table(table(substr(dt1$anno, 1, 9))))
@@ -160,33 +167,33 @@ kable(data.table(table(dt1$reg)))
 # neighboring CpG sites can be viewed as “pseudo-replicates", and the dispersion can still be
 # estimated with reasonable precision.
 
-# One-way analysis (our example)----
-dtl <- list(data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_CON_0.N,
-                       X = dt1$X02w_CON_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_CON_1.N,
-                       X = dt1$X02w_CON_1.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_UVB_0.N,
-                       X = dt1$X02w_UVB_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_UVB_1.N,
-                       X = dt1$X02w_UVB_1.X))
-dtl
-
-BSobj <- makeBSseqData(dat = dtl,
-                       sampleNames = c("W2Ctrl1",
-                                       "W2Ctrl2",
-                                       "W2UVB1",
-                                       "W2UVB2"))
-BSobj
-
-dmlTest <- DMLtest(BSobj,
-                   group1 = c("W2Ctrl1", 
-                              "W2Ctrl2"), 
-                   group2 = c("W2UVB1", 
-                              "W2UVB2"))
+# # One-way analysis (our example)----
+# dtl <- list(data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_CON_0.N,
+#                        X = dt1$X02w_CON_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_CON_1.N,
+#                        X = dt1$X02w_CON_1.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_UVB_0.N,
+#                        X = dt1$X02w_UVB_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_UVB_1.N,
+#                        X = dt1$X02w_UVB_1.X))
+# dtl
+# 
+# BSobj <- makeBSseqData(dat = dtl,
+#                        sampleNames = c("W2Ctrl1",
+#                                        "W2Ctrl2",
+#                                        "W2UVB1",
+#                                        "W2UVB2"))
+# BSobj
+# 
+# dmlTest <- DMLtest(BSobj,
+#                    group1 = c("W2Ctrl1", 
+#                               "W2Ctrl2"), 
+#                    group2 = c("W2UVB1", 
+#                               "W2UVB2"))
 
 # Multi-factor analysis (treatment + time + interaction)----
 dtl <- list(data.table(dt1[, c("chr", "pos")],
@@ -312,11 +319,103 @@ DMLfit <- DMLfit.multiFactor(BSobj = BSobj,
 summary(DMLfit)
 head(DMLfit$fit$beta)
 
-colnames(DMLfit$X)
+# Define contrasts----
+contr <- data.table(design,
+                    DMLfit$X)
+contr
 
 # Contrasts: UVB vs. Control at Week 2----
-DMLtest.UVB.Ctrl.W2 <- DMLtest.multiFactor(DMLfit, 
-                                    coef="trtUVB")
+colnames(DMLfit$X)
+
+# Test treatment effect----
+DMLtest.UVB.Ctrl.Trt <- DMLtest.multiFactor(DMLfit, 
+                                           term = "trt")
+head(DMLtest.UVB.Ctrl.Trt)
+
+# Test Time effect---
+DMLtest.UVB.Ctrl.Time <- DMLtest.multiFactor(DMLfit, 
+                                             term = "time")
+head(DMLtest.UVB.Ctrl.Time)
+
+# UVB vs. Control----
+DMLtest.UVB.Ctrl <- DMLtest.multiFactor(DMLfit, 
+                                           coef = "trtUVB")
+head(DMLtest.UVB.Ctrl)
+
+# Create a matrix of contrasts.
+# Each column will correspond to a specific contrast.
+# Each row will correspont to a specific column in the design matrix DMLfit$X
+
+# We want the following comparisons (Kong email 03/19/2018):
+# Well, let's go back to our discussion at the lab meeting last week. 
+# So, we like to COMPARE the following, you may NOT need to include the "TIME" yet:
+# We have 2 wk, 15 wk, 25 wk (adjacent normal epithelium, ANE), 
+# 25 wk tumor (25T) and 25 wk tumor (whole skin - don't worry about this, may be confounding).
+# Now, we want to compare
+# control (no UV) vs UVB - 2 vs 15; 2 vs 25ANE, 2 vs 25T, may be also 15 vs 25ANE, 15 vs 25T
+# UVB vs UVB + SFN - 2 vs 15; 2 vs 25ANE, 2 vs 25T, may be also 15 vs 25ANE, 15 vs 25T (same as above).
+# Now another project down the road, we can compare the control (no UVB),
+# 2 vs 25 vs 25 again effect. THIS will be later, NOT now.
+
+# My comparisons: 
+# 1. Ctrl vs. UVB, Week 2
+# 2. Ctrl vs. UVB, Week 15
+# 3. Ctrl vs. UVB, Week 25
+# 4. UVB vs. SFN, Week 2
+# 5. UVB vs. SFN, Week 15
+# 6. UVB vs. SFN, Week 25
+# 7. Week 2 vs. Week 15, Control
+# 8. Week 2 vs. Week 25, Control
+# 9. Week 2 vs. Week 15, UVB
+# 10. Week 2 vs. Week 25, UVB
+# 11. Week 2 vs. Week 15, SFN
+# 12. Week 2 vs. Week 25, SFN
+
+mat1 <- matrix(0, 
+               nrow = ncol(DMLfit$X),
+               ncol = 12) 
+colnames(mat1) <- c("Ctrl vs. UVB, Week 2",
+                    "Ctrl vs. UVB, Week 15",
+                    "Ctrl vs. UVB, Week 25",
+                    "UVB vs. SFN, Week 2",
+                    "UVB vs. SFN, Week 15",
+                    "UVB vs. SFN, Week 25",
+                    "Week 2 vs. Week 15, Control",
+                    "Week 2 vs. Week 25, Control",
+                    "Week 2 vs. Week 15, UVB",
+                    "Week 2 vs. Week 25, UVB",
+                    "Week 2 vs. Week 15, SFN",
+                    "Week 2 vs. Week 25, SFN")
+rownames(mat1) <- colnames(DMLfit$X)
+mat1
+contr
+
+mat1[2, 1] <- 1
+mat1[3:5, 1] <- -1
+
+mat1[2, 2] <- 1
+mat1[]
+
+# 1. Ctrl vs. UVB, Week 2----
+
+
+
+DMLtest.UVB.Ctrl.w2 <- DMLtest.multiFactor(DMLfit, 
+                                           Contrast = mat1[, 
+                                                           1,
+                                                           drop = FALSE])
+head(DMLtest.UVB.Ctrl.w2)
+
+# 2. Ctrl vs. UVB, Week 15----
+mat1[2, 2] <- 1
+mat1[c(4, 5), 1] <- -1
+DMLtest.UVB.Ctrl.w2 <- DMLtest.multiFactor(DMLfit, 
+                                           Contrast = mat1[, 
+                                                           1,
+                                                           drop = FALSE])
+head(DMLtest.UVB.Ctrl.w2)
+
+mat1[3, 2] <- 1
 
 # Smallest FDRs
 head(DMLtest.UVB.Ctrl.W2[order(DMLtest.UVB.Ctrl.W2$fdrs,
