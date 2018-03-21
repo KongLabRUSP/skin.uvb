@@ -5,6 +5,44 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
+### 03/15/2015
+* Analysis plan (Ran)    
+
+1. DNA methylation of SFN, UVB, Control
+2. DNA methylation of UA, UVB, Control
+3. RNA seq of SFN, UVB, Control
+4. RNA seq of UA, UVB, Control
+5. DNA methyl seq with RNA seq UVB induced carcinogenesis.
+6. Aging and methylation
+
+Figures and Tables in Paper 1 (SFN), 2 (UA) DNA papers.
+1. Table 1: Up and down regulated top 10 genes in all time points and tumors.
+2. Figure 1: Top 20 pathways with z-score indication for all time points and tumor
+3. Figure 2: Heatmap and cluster for all samples (4 samples from Control, 4 samples from UVB,
+4 samples from SFN with UVB).
+4. Figure 3: PCA or column chart of all samples (samples are same in 3)
+5. Figure 4: MA ploting (DEseq2)
+6. Figure 5: Gene heatmap and Venn diagram.
+6. Figure 6: Time vs CpG region with ??? (still working on this figure)
+
+Figures and Tables in Paper 3 (SFN), 4 (UA) RNA papers.
+1. Table 1: Up and down regulated top 10 genes in all time points and tumors.
+2. Figure 1: Top 20 pathways with z-score indication for all time points and tumor
+3. Figure 2: Heatmap and cluster for all samples (4 samples from Control, 4 samples from UVB,
+4 samples from SFN with UVB).
+4. Figure 3: PCA or column chart of all samples (samples are same in 3)
+5. Figure 4: MA ploting (DEseq2)
+6. Figure 5: Genes heatmap and Venn diagram.
+Figures and Tables in paper
+
+* Analysis plan (Davit)    
+
+1. For Skin UVB:
+   a. We are splitting data into two sets: Ctrl, UVB and UA; Ctrl, UVB and SFN, and rerunning DESeq2 analysis of RNA-seq
+   b. Same for Methyl-seq data and analyzing using John's DMRfinder to  cluster CpG followed by DSS two-factor analysis
+   c. DNA methylation correlation with RNA expression
+   d. Separately, examine aging effect in control samples only over time 
+
 ### 03/10/2018
 * Added RNA-seq data analysis with DESeq2
 
