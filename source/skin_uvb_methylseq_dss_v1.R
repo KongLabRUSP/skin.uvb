@@ -12,7 +12,6 @@ date()
 # NOTE: several packages, e.g. Rcpp, MASS, etc., might be deleted manually and reinstalled
 # Workflow: https://www.bioconductor.org/help/workflows/rnaseqGene/
 # source("https://bioconductor.org/biocLite.R")
-# biocLite("DESeq2")
 # biocLite("TxDb.Mmusculus.UCSC.mm10.knownGene")
 # biocLite("ChIPseeker")
 # biocLite("DO.db")
@@ -59,23 +58,25 @@ p1 <- ggplot(t1,
                  y = Frequency,
                  fill = Feature)) +
   geom_bar(width = 1, 
-           stat = "identity") +
+           stat = "identity",
+           color = "black") +
   coord_polar("y",
               start = 0,
               direction = -1) +
+  scale_x_discrete("") +
   ggtitle("Annotation by Region (%)")
 p1 
 
-tiff(filename = "tmp/skin_uvb_ua.vs.pc.tiff",
-     height = 10,
-     width = 10,
+tiff(filename = "tmp/skin_uvb_anno_by_reg.tiff",
+     height = 5,
+     width = 5,
      units = 'in',
      res = 300,
      compression = "lzw+p")
 print(p1)
 graphics.off()
 
-# # NOTE: mitochondrial DNA (chrM) already not mapped.
+# # NOTE: mitochondrial DNA (chrM) not mapped.
 # #       Also, chrX = 20 and chrY = 21. Compare below:
 # unique(dt1$geneChr)
 # dt1[dt1$geneChr == 20,]
@@ -99,7 +100,6 @@ dt1 <- data.table(gene = dt1$SYMBOL,
                   chr = dt1$geneChr,
                   pos = dt1$start,
                   reg = NA,
-                  CpG = dt1$CpG,
                   dt1[, CpG:X02w_SFN_1.X],
                   dt1[, X02w_UVB_0.N:X15w_SFN_1.X], 
                   dt1[, X15w_UVB_0.N:X25t_SFN_1.X],
@@ -154,6 +154,64 @@ kable(data.table(table(dt1$reg)))
   # |Body       | 73343|
   # |Downstream | 71981|
   # |3' UTR     |  4869|
+
+# CpG distribution and coverage----
+summary(dt1$CpG)
+p2 <- ggplot(dt1,
+             aes(x = CpG)) +
+  geom_histogram(color = "black",
+                 fill = "grey",
+                 binwidth = 5) +
+  scale_x_continuous(name = "Number of CpG",
+                     breaks = c(3, 
+                                seq(from = 5,
+                                    to = 60,
+                                    by = 5))) +
+  coord_cartesian(xlim=c(3, 60)) +
+  scale_y_continuous(name = "Counts (x10,000)",
+                     breaks = seq(from = 0, 
+                                  to = 14*10^4,
+                                  by = 10^4),
+                     labels = seq(from = 0, 
+                                  to = 14,
+                                  by = 1)) +
+  ggtitle("Distribution of DMR by Number of CpG")
+p2
+
+tiff(filename = "tmp/skin_uvb_CpG_hist.tiff",
+     height = 5,
+     width = 5,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p2)
+graphics.off()
+
+p3 <- ggplot(dt1,
+             aes(x = CpG)) +
+  facet_wrap(~ reg,
+             scale = "free_y") +
+  geom_histogram(color = "black",
+                 fill = "grey",
+                 binwidth = 5) +
+  scale_x_continuous(name = "Number of CpG",
+                     breaks = c(3, 
+                                seq(from = 5,
+                                    to = 60,
+                                    by = 5))) +
+  coord_cartesian(xlim=c(3, 60)) +
+  scale_y_continuous(name = "Counts") +
+  ggtitle("Distribution of DMR by Number of CpG and Region")
+p3
+
+tiff(filename = "tmp/skin_uvb_CpG_by_reg_hist.tiff",
+     height = 8,
+     width = 12,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p3)
+graphics.off()
 
 # Dispersion Shrinkage for Sequencing data (DSS)----
 # This is based on Wald test for beta-binomial distribution.
@@ -358,67 +416,96 @@ head(DMLtest.UVB.Ctrl)
 # 2 vs 25 vs 25 again effect. THIS will be later, NOT now.
 
 # My comparisons: 
-# 1. Ctrl vs. UVB, Week 2
-# 2. Ctrl vs. UVB, Week 15
-# 3. Ctrl vs. UVB, Week 25
-# 4. UVB vs. SFN, Week 2
-# 5. UVB vs. SFN, Week 15
-# 6. UVB vs. SFN, Week 25
-# 7. Week 2 vs. Week 15, Control
-# 8. Week 2 vs. Week 25, Control
-# 9. Week 2 vs. Week 15, UVB
-# 10. Week 2 vs. Week 25, UVB
-# 11. Week 2 vs. Week 15, SFN
-# 12. Week 2 vs. Week 25, SFN
+cnames <- c("Ctrl vs. UVB, Week 2",
+            "Ctrl vs. UVB, Week 15",
+            "Ctrl vs. UVB, Week 25",
+            "UVB vs. SFN, Week 2",
+            "UVB vs. SFN, Week 15",
+            "UVB vs. SFN, Week 25",
+            "Week 2 vs. Week 15, Control",
+            "Week 2 vs. Week 25, Control",
+            "Week 2 vs. Week 15, UVB",
+            "Week 2 vs. Week 25, UVB",
+            "Week 2 vs. Week 15, SFN",
+            "Week 2 vs. Week 25, SFN")
 
-mat1 <- matrix(0, 
-               nrow = ncol(DMLfit$X),
-               ncol = 12) 
-colnames(mat1) <- c("Ctrl vs. UVB, Week 2",
-                    "Ctrl vs. UVB, Week 15",
-                    "Ctrl vs. UVB, Week 25",
-                    "UVB vs. SFN, Week 2",
-                    "UVB vs. SFN, Week 15",
-                    "UVB vs. SFN, Week 25",
-                    "Week 2 vs. Week 15, Control",
-                    "Week 2 vs. Week 25, Control",
-                    "Week 2 vs. Week 15, UVB",
-                    "Week 2 vs. Week 25, UVB",
-                    "Week 2 vs. Week 15, SFN",
-                    "Week 2 vs. Week 25, SFN")
-rownames(mat1) <- colnames(DMLfit$X)
+
+# Custom contrasts----
+contr1 <- design
+contr1$trttime <- paste(contr1$trt,
+                        contr1$time,
+                        sep = "")
+xnames <- unique(contr1$trttime)
+contr1[, c(xnames) := 0]
+for (i in 4:12){
+  contr1[, i] <- as.numeric(contr1$trttime == colnames(contr1)[i])
+}
+contr1
+
+mat1 <- matrix(0,
+               nrow = length(xnames),
+               ncol = 12)
+colnames(mat1) <- cnames
+rownames(mat1) <- xnames
 mat1
-contr
-
-mat1[2, 1] <- 1
-mat1[3:5, 1] <- -1
-
-mat1[2, 2] <- 1
-mat1[]
 
 # 1. Ctrl vs. UVB, Week 2----
-
-
-
-DMLtest.UVB.Ctrl.w2 <- DMLtest.multiFactor(DMLfit, 
-                                           Contrast = mat1[, 
+mat1[1, 1] <- -1
+mat1[2, 1] <- 1
+mat1
+DMLtest.UVB.Ctrl.W2 <- DMLtest.multiFactor(DMLfit,
+                                           Contrast = mat1[,
                                                            1,
                                                            drop = FALSE])
-head(DMLtest.UVB.Ctrl.w2)
+head(DMLtest.UVB.Ctrl.W2)
+DMLtest.UVB.Ctrl.W2$chr <- as.numeric(as.character(DMLtest.UVB.Ctrl.W2$chr))
+DMLtest.UVB.Ctrl.W2 <- data.table(merge(dt1[, c("gene",
+                                                "anno",
+                                                "reg",
+                                                "chr",
+                                                "pos")],
+                                        DMLtest.UVB.Ctrl.W2,
+                                        by = c("chr",
+                                               "pos")))
+# Low q-values
+tmp1 <- subset(DMLtest.UVB.Ctrl.W2,
+               fdrs < 0.01)
+tmp1
 
-# 2. Ctrl vs. UVB, Week 15----
-mat1[2, 2] <- 1
-mat1[c(4, 5), 1] <- -1
-DMLtest.UVB.Ctrl.w2 <- DMLtest.multiFactor(DMLfit, 
-                                           Contrast = mat1[, 
-                                                           1,
-                                                           drop = FALSE])
-head(DMLtest.UVB.Ctrl.w2)
-
-mat1[3, 2] <- 1
-
-# Smallest FDRs
-head(DMLtest.UVB.Ctrl.W2[order(DMLtest.UVB.Ctrl.W2$fdrs,
-                               decreasing = FALSE), ])
+# mat1 <- matrix(0,
+#                nrow = ncol(DMLfit$X),
+#                ncol = 12)
+# colnames(mat1) <- cnames
+# rownames(mat1) <- colnames(DMLfit$X)
+# mat1
+# contr
+# 
+# mat1[2, 1] <- 1
+# mat1[3:5, 1] <- -1
+# 
+# mat1[2, 2] <- 1
+# mat1[]
+# 
+# # 1. Ctrl vs. UVB, Week 2----
+# DMLtest.UVB.Ctrl.w2 <- DMLtest.multiFactor(DMLfit, 
+#                                            Contrast = mat1[, 
+#                                                            1,
+#                                                            drop = FALSE])
+# head(DMLtest.UVB.Ctrl.w2)
+# 
+# # 2. Ctrl vs. UVB, Week 15----
+# mat1[2, 2] <- 1
+# mat1[c(4, 5), 1] <- -1
+# DMLtest.UVB.Ctrl.w2 <- DMLtest.multiFactor(DMLfit, 
+#                                            Contrast = mat1[, 
+#                                                            1,
+#                                                            drop = FALSE])
+# head(DMLtest.UVB.Ctrl.w2)
+# 
+# mat1[3, 2] <- 1
+# 
+# # Smallest FDRs
+# head(DMLtest.UVB.Ctrl.W2[order(DMLtest.UVB.Ctrl.W2$fdrs,
+#                                decreasing = FALSE), ])
 
 # sink()

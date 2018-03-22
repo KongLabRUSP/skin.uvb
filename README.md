@@ -5,7 +5,7 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
-<<<<<<< HEAD
+
 ### 03/15/2015
 * Analysis plan (Ran)    
 
@@ -43,10 +43,9 @@ Figures and Tables in paper
    b. Same for Methyl-seq data and analyzing using John's DMRfinder to  cluster CpG followed by DSS two-factor analysis
    c. DNA methylation correlation with RNA expression
    d. Separately, examine aging effect in control samples only over time 
-=======
+
 ### 03/17/2018
 * Added Methyl-seq analysis with package DSS (*skin_uvb_methylseq_dss_v1.R*)
->>>>>>> 2580279863fbf719b951216acca1454089ae46e5
 
 ### 03/10/2018
 * Added RNA-seq data analysis with DESeq2
