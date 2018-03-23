@@ -18,6 +18,7 @@ date()
 # biocLite("GenomicRanges")
 # biocLite("org.Mm.eg.db")
 # biocLite("DSS")
+# biocLite("bsseq")
 
 require(data.table)
 require(ggplot2)
@@ -35,7 +36,6 @@ dt01
 # NOTE: there are 14 rows representing mitochondrial DNA
 unique(dt01$chr)
 dt01[dt01$chr == "chrM",]
-
 
 # Load and view percent methylated (no annotation)----
 dt02 <- fread("data/renyi_methylseq_02092018/combined_dmr_fraction_s32_uvb-skin_renyi_02092018.csv")
@@ -239,7 +239,7 @@ graphics.off()
 #                        N = dt1$X02w_UVB_1.N,
 #                        X = dt1$X02w_UVB_1.X))
 # dtl
-# 
+# renyi_methylseq_02092018
 # BSobj <- makeBSseqData(dat = dtl,
 #                        sampleNames = c("W2Ctrl1",
 #                                        "W2Ctrl2",
@@ -272,7 +272,7 @@ dtl <- list(data.table(dt1[, c("chr", "pos")],
             data.table(dt1[, c("chr", "pos")],
                        N = dt1$X02w_SFN_1.N,
                        X = dt1$X02w_SFN_1.X),
-            
+
             data.table(dt1[, c("chr", "pos")],
                        N = dt1$X15w_CON_0.N,
                        X = dt1$X15w_CON_0.X),
@@ -291,7 +291,7 @@ dtl <- list(data.table(dt1[, c("chr", "pos")],
             data.table(dt1[, c("chr", "pos")],
                        N = dt1$X15w_SFN_1.N,
                        X = dt1$X15w_SFN_1.X),
-            
+
             data.table(dt1[, c("chr", "pos")],
                        N = dt1$X25w_CON_0.N,
                        X = dt1$X25w_CON_0.X),
@@ -310,6 +310,7 @@ dtl <- list(data.table(dt1[, c("chr", "pos")],
             data.table(dt1[, c("chr", "pos")],
                        N = dt1$X25w_SFN_1.N,
                        X = dt1$X25w_SFN_1.X))
+
             # data.table(dt1[, c("chr", "pos")],
             #            N = dt1$X25t_CON_0.N,
             #            X = dt1$X25t_CON_0.X),
@@ -323,8 +324,8 @@ dtl <- list(data.table(dt1[, c("chr", "pos")],
             #            N = dt1$X25t_UVB_1.N,
             #            X = dt1$X25t_UVB_1.X),
             # data.table(dt1[, c("chr", "pos")],
-            #            N = dt1$X15w_SFN_0.N,
-            #            X = dt1$X15w_SFN_0.X),
+            #            N = dt1$X25t_SFN_0.N,
+            #            X = dt1$X25t_SFN_0.X),
             # data.table(dt1[, c("chr", "pos")],
             #            N = dt1$X25t_SFN_1.N,
             #            X = dt1$X25t_SFN_1.X))
@@ -385,20 +386,20 @@ contr
 # Contrasts: UVB vs. Control at Week 2----
 colnames(DMLfit$X)
 
-# Test treatment effect----
-DMLtest.UVB.Ctrl.Trt <- DMLtest.multiFactor(DMLfit, 
-                                           term = "trt")
-head(DMLtest.UVB.Ctrl.Trt)
-
-# Test Time effect---
-DMLtest.UVB.Ctrl.Time <- DMLtest.multiFactor(DMLfit, 
-                                             term = "time")
-head(DMLtest.UVB.Ctrl.Time)
-
-# UVB vs. Control----
-DMLtest.UVB.Ctrl <- DMLtest.multiFactor(DMLfit, 
-                                           coef = "trtUVB")
-head(DMLtest.UVB.Ctrl)
+# # Test treatment effect----
+# DMLtest.UVB.Ctrl.Trt <- DMLtest.multiFactor(DMLfit, 
+#                                            term = "trt")
+# head(DMLtest.UVB.Ctrl.Trt)
+# 
+# # Test Time effect---
+# DMLtest.UVB.Ctrl.Time <- DMLtest.multiFactor(DMLfit, 
+#                                              term = "time")
+# head(DMLtest.UVB.Ctrl.Time)
+# 
+# # UVB vs. Control----
+# DMLtest.UVB.Ctrl <- DMLtest.multiFactor(DMLfit, 
+#                                            coef = "trtUVB")
+# head(DMLtest.UVB.Ctrl)
 
 # Create a matrix of contrasts.
 # Each column will correspond to a specific contrast.
@@ -427,8 +428,10 @@ cnames <- c("Ctrl vs. UVB, Week 2",
             "Week 2 vs. Week 15, UVB",
             "Week 2 vs. Week 25, UVB",
             "Week 2 vs. Week 15, SFN",
-            "Week 2 vs. Week 25, SFN")
-
+            "Week 2 vs. Week 25, SFN",
+            "Week 15 vs. Week 25, Control",
+            "Week 15 vs. Week 25, UVB",
+            "Week 15 vs. Week 25, SFN")
 
 # Custom contrasts----
 contr1 <- design
@@ -444,7 +447,7 @@ contr1
 
 mat1 <- matrix(0,
                nrow = length(xnames),
-               ncol = 12)
+               ncol = length(cnames))
 colnames(mat1) <- cnames
 rownames(mat1) <- xnames
 mat1
@@ -458,15 +461,35 @@ DMLtest.UVB.Ctrl.W2 <- DMLtest.multiFactor(DMLfit,
                                                            1,
                                                            drop = FALSE])
 head(DMLtest.UVB.Ctrl.W2)
+
 DMLtest.UVB.Ctrl.W2$chr <- as.numeric(as.character(DMLtest.UVB.Ctrl.W2$chr))
-DMLtest.UVB.Ctrl.W2 <- data.table(merge(dt1[, c("gene",
-                                                "anno",
-                                                "reg",
-                                                "chr",
-                                                "pos")],
+DMLtest.UVB.Ctrl.W2 <- data.table(merge(dt1[, gene:X02w_UVB_1.X],
                                         DMLtest.UVB.Ctrl.W2,
                                         by = c("chr",
                                                "pos")))
+DMLtest.UVB.Ctrl.W2
+
+# Means----
+tmp <- DMLtest.UVB.Ctrl.W2[, X02w_CON_0.N:X02w_UVB_1.X]
+# tmp <- apply(tmp,
+#              MARGIN = 2,
+#              function(a) {
+#                a[is.na(a)] <- 0
+#                a <- a + 1
+#                return(a)
+#              })
+tmp <- tmp[, 
+           seq(2, ncol(tmp), by = 2),
+           with = FALSE]/tmp[, 
+                             seq(1, ncol(tmp) - 1, by = 2),
+                             with = FALSE]
+names(tmp) <- paste(names(tmp),
+                    "mu",
+                    sep = "_")
+
+DMLtest.UVB.Ctrl.W2 <- data.table(DMLtest.UVB.Ctrl.W2,
+                                  tmp)
+DMLtest.UVB.Ctrl.W2
 # Low q-values
 tmp1 <- subset(DMLtest.UVB.Ctrl.W2,
                fdrs < 0.01)
@@ -508,4 +531,5 @@ tmp1
 # head(DMLtest.UVB.Ctrl.W2[order(DMLtest.UVB.Ctrl.W2$fdrs,
 #                                decreasing = FALSE), ])
 
+# sessionInfo()
 # sink()
