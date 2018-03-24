@@ -5,6 +5,8 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
+### 03/22/2018
+* 
 
 ### 03/15/2015
 * Analysis plan (Ran)    

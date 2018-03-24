@@ -108,6 +108,33 @@ dt1 <- data.table(gene = dt1$SYMBOL,
                   geneName = dt1$GENENAME)
 dt1
 
+snames <- c("W2Ctrl1",
+            "W2Ctrl2",
+            "W2UVB1",
+            "W2UVB2",
+            "W2SFN1",
+            "W2SFN2",
+            
+            "W15Ctrl1",
+            "W15Ctrl2",
+            "W15UVB1",
+            "W15UVB2",
+            "W15SFN1",
+            "W15SFN2",
+            
+            "W25Ctrl1",
+            "W25Ctrl2",
+            "W25UVB1",
+            "W25UVB2",
+            "W25SFN1",
+            "W25SFN2")
+# "W25tCtrl1",
+# "W25tCtrl2",
+# "W25tUVB1",
+# "W25tUVB2",
+# "W25tSFN1",
+# "W25tSFN2")
+
 # Regions----
 kable(data.table(table(substr(dt1$anno, 1, 9))))
   # |V1        |     N|
@@ -211,6 +238,187 @@ tiff(filename = "tmp/skin_uvb_CpG_by_reg_hist.tiff",
      res = 300,
      compression = "lzw+p")
 print(p3)
+graphics.off()
+
+# Percent methylation----
+tmp <- as.matrix(dt1[, X02w_CON_0.N:X25w_UVB_1.X])
+tmp <- apply(tmp,
+             MARGIN = 2,
+             function(a) {
+               a[is.na(a)] <- 0
+               return(a)
+             })
+head(tmp)
+
+dtN <- tmp[, seq(1,
+                 ncol(tmp) - 1, 
+                 by = 2)]
+head(dtN)
+
+dtX <- tmp[, seq(2,
+                 ncol(tmp), 
+                 by = 2)]
+head(dtX)
+
+pct <- dtX/dtN
+colnames(pct) <- substr(colnames(pct),
+                        1,
+                        nchar(colnames(pct)) - 2)
+head(pct)
+
+pct <- apply(pct,
+             MARGIN = 2,
+             function(a) {
+               a[is.nan(a)] <- 0
+               return(a)
+             })
+head(pct)
+
+# Hits per CpG average (i.e. vertical coverage)----
+t1 <- apply(dtN,
+            2,
+            function(a) {
+              return(round(a/dt1$CpG,
+                           1))
+            })
+
+mu <- list()
+for (i in 1:(ncol(t1)/2)) {
+  x1 <- aggregate(x = t1[, 2*i - 1],
+                       FUN = mean,
+                       by = list(dt1$reg))
+  x2 <- aggregate(x = t1[, 2*i],
+                  FUN = mean,
+                  by = list(dt1$reg))
+  x3 <- merge(x1, x2, by = "Group.1")
+  mu[[i]] <- data.table(reg = x3[, 1],
+                        mu = (x3[, 2] + x3[, 3])/2)
+}
+names(mu) <- unique(substr(colnames(t1),
+                           1,
+                           8))
+mu
+
+# Average methylation per region per treatment/time
+mumth <- list()
+for (i in 1:(ncol(pct)/2)) {
+  x1 <- aggregate(x = pct[, 2*i - 1],
+                  FUN = mean,
+                  by = list(dt1$reg))
+  x2 <- aggregate(x = pct[, 2*i],
+                  FUN = mean,
+                  by = list(dt1$reg))
+  x3 <- merge(x1, x2, by = "Group.1")
+  mumth[[i]] <- data.table(x3[, 1],
+                           (x3[, 2] + x3[, 3])/2)
+  colnames(mumth[[i]]) <- c("reg",
+                            paste("mu",
+                                  i,
+                                  sep = ""))
+}
+mumth <- data.table(Reduce(function(...) merge(..., by = "reg"), mumth))
+colnames(mumth)[-1] <- unique(substr(colnames(pct),
+                                     1,
+                                     8))
+mumth <- melt.data.table(mumth,
+                         id.vars = 1,
+                         measure.vars = 2:ncol(mumth),
+                         variable.name = "Treatment",
+                         value.name = "Methylation (%)")
+mumth$Time <- substr(mumth$Treatment, 1, 4)
+mumth$Time <- factor(mumth$Time,
+                     levels = unique(mumth$Time))
+mumth$Treatment <- substr(mumth$Treatment, 6, 8)
+mumth$Treatment <- factor(mumth$Treatment,
+                     levels = unique(mumth$Treatment))
+mumth
+
+p1 <- ggplot(mumth,
+             aes(x = reg,
+                 y = `Methylation (%)`,
+                 group = Treatment,
+                 fill = Treatment)) +
+  facet_wrap(~ Time) +
+  geom_bar(position = position_dodge(),
+           stat="identity",
+           color = "black") +
+  scale_x_discrete("Region") +
+  scale_y_continuous(limits = c(0, 1)) +
+  ggtitle("Skin UVB Total Methylation (%)") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1))
+p1
+tiff(filename = "tmp/skin_uvb_total_methyl.tiff",
+     height = 6,
+     width = 7,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
+graphics.off()
+
+# PCA----
+m1 <- prcomp(t(tmp),
+             center = TRUE,
+             scale. = TRUE)
+summary(m1)
+plot(m1)
+
+# Biplot while keep only the most important variables (Javier)----
+# Select PC-s to pliot (PC1 & PC2)
+choices <- 1:2
+
+# Scores, i.e. points (df.u)
+dt.scr <- data.table(m1$x[, choices])
+# Add grouping variable
+dt.scr$grp <- substr(colnames(tmp),
+                     6,
+                     8)
+dt.scr$sample <- colnames(tmp)
+dt.scr
+
+# Loadings, i.e. arrows (df.v)
+dt.rot <- as.data.frame(m1$rotation[, choices])
+dt.rot$feat <- rownames(dt.rot)
+dt.rot <- data.table(dt.rot)
+dt.rot
+
+# Axis labels
+u.axis.labs <- paste(colnames(dt.rot)[1:2], 
+                     sprintf('(%0.1f%% explained var.)', 
+                             100*m1$sdev[choices]^2/sum(m1$sdev^2)))
+u.axis.labs
+
+p1 <- ggplot(data = dt.rot[var.keep.ndx,],
+             aes(x = PC1,
+                 y = PC2)) +
+  geom_point(data = dt.scr,
+             aes(fill = grp),
+             shape = 21,
+             size = 3,
+             alpha = 0.5) +
+  geom_text(data = dt.scr,
+            aes(x = PC1 + 40,
+                y = PC2,
+                label = dt.scr$sample),
+            size = 2,
+            hjust = 0.5) +
+  scale_x_continuous(u.axis.labs[1]) +
+  scale_y_continuous(u.axis.labs[2]) +
+  scale_fill_manual(name = "Treatment",
+                    values = c("white", "red", "blue", "green")) +
+  ggtitle("PCA of Percent Methylation") +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 10))
+p1
+tiff(filename = "tmp/skin_uvb_pca_plot.tiff",
+     height = 6,
+     width = 7,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
 graphics.off()
 
 # Dispersion Shrinkage for Sequencing data (DSS)----
@@ -332,32 +540,7 @@ dtl <- list(data.table(dt1[, c("chr", "pos")],
 dtl
 
 BSobj <- makeBSseqData(dat = dtl,
-                       sampleNames = c("W2Ctrl1",
-                                       "W2Ctrl2",
-                                       "W2UVB1",
-                                       "W2UVB2",
-                                       "W2SFN1",
-                                       "W2SFN2",
-                                       
-                                       "W15Ctrl1",
-                                       "W15Ctrl2",
-                                       "W15UVB1",
-                                       "W15UVB2",
-                                       "W15SFN1",
-                                       "W15SFN2",
-                                       
-                                       "W25Ctrl1",
-                                       "W25Ctrl2",
-                                       "W25UVB1",
-                                       "W25UVB2",
-                                       "W25SFN1",
-                                       "W25SFN2"))
-                                       # "W25tCtrl1",
-                                       # "W25tCtrl2",
-                                       # "W25tUVB1",
-                                       # "W25tUVB2",
-                                       # "W25tSFN1",
-                                       # "W25tSFN2"))
+                       sampleNames = smanes)
 BSobj
 
 design <- data.table(trt = rep(rep(c("Ctrl", "UVB", "SFN"),
