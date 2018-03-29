@@ -5,8 +5,11 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
+### 03/29/2018
+* Pairwise comaprisons 
+
 ### 03/22/2018
-* 
+* Added DSS script
 
 ### 03/15/2015
 * Analysis plan (Ran)    

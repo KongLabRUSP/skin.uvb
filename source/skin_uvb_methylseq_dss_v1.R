@@ -167,19 +167,19 @@ dt1$reg[substr(dt1$anno,
                          "Down")] <- "Downstream"
 
 dt1$reg <- factor(dt1$reg,
-                  levels = c("5' UTR",
-                             "Promoter",
+                  levels = c("Promoter",
+                             "5' UTR",
                              "Body",
-                             "Downstream",
-                             "3' UTR"))
+                             "3' UTR",
+                             "Downstream"))
 kable(data.table(table(dt1$reg)))
   # |V1         |     N|
   # |:----------|-----:|
-  # |5' UTR     |   839|
   # |Promoter   | 86826|
+  # |5' UTR     |   839|
   # |Body       | 73343|
-  # |Downstream | 71981|
   # |3' UTR     |  4869|
+  # |Downstream | 71981|
 
 # CpG distribution and coverage----
 summary(dt1$CpG)
@@ -271,19 +271,20 @@ head(pct)
 #                a[is.nan(a)] <- 0
 #                return(a)
 #              })
-head(pct)
+# head(pct)
 
 # Remove rows with all zeros----
 dim(pct[rowSums(pct) == 0, ])
 dim(pct[is.na(rowSums(pct)), ])
 dim(pct)
-# 2,548 out of 237,858 such rows. Remove.
+# 53,894 (2,548 with repalced zeros) out of 237,858 such rows. Remove.
 
-ndx.keep <- rowSums(pct) != 0
+ndx.keep <- rowSums(pct) != 0 & !is.na(rowSums(pct))
 pct <- pct[ndx.keep, ]
 dt1 <- dt1[ndx.keep, ]
 dtN <- dtN[ndx.keep, ]
 dtX <- dtX[ndx.keep, ]
+# 183,964 remaine
 
 # Hits per CpG average (i.e. vertical coverage)----
 t1 <- apply(dtN,
@@ -414,10 +415,18 @@ tiff(filename = "tmp/skin_uvb_avg_sd_methyl_by_reg.tiff",
 print(p2)
 graphics.off()
 
-# Clustering----
+# Clustering by Euclidean distances----
 dst <- dist(t(pct))
 sampleDists <- as.matrix(dst)
-sampleDists
+rownames(sampleDists) <- colnames(sampleDists) <- paste("Week",
+                                                        as.numeric(substr(colnames(sampleDists),
+                                                                          2,
+                                                                          3)),
+                                                        "_",
+                                                        substr(colnames(sampleDists),
+                                                               6,
+                                                               10),
+                                                        sep = "")
 
 # Make zeros less influential
 diag(sampleDists) <- min(dst) - 5
@@ -430,7 +439,8 @@ tiff(filename = "tmp/skin_uvb_samples_cluster.tiff",
      compression = "lzw+p")
 heatmap(sampleDists,
         symm = TRUE,
-        col = heat.colors(50))
+        col = heat.colors(50),
+        margins = c(10, 10))
 graphics.off()
 
 # PCA----
@@ -458,7 +468,15 @@ dt.scr$grp <- factor(dt.scr$grp,
                                 "UVB",
                                 "SFN + UVB"))
   
-dt.scr$sample <- colnames(pct)
+dt.scr$sample <- paste("Week",
+                       as.numeric(substr(colnames(pct),
+                                         2,
+                                         3)),
+                       "_",
+                       substr(colnames(pct),
+                              6,
+                              10),
+                       sep = "")
 dt.scr
 
 # Loadings, i.e. arrows (df.v)
@@ -527,7 +545,8 @@ tiff(filename = "tmp/skin_uvb_samples_cluster_no_tumor.tiff",
      compression = "lzw+p")
 heatmap(sampleDists,
         symm = TRUE,
-        col = heat.colors(50))
+        col = heat.colors(50),
+        margins = c(10, 10))
 graphics.off()
 
 # PCA, no tumor----
@@ -566,7 +585,15 @@ dt.scr$grp <- factor(dt.scr$grp,
                                 "UVB",
                                 "SFN + UVB"))
 
-dt.scr$sample <- colnames(pct[row.keep, ndx.keep])
+dt.scr$sample <- paste("Week",
+                       as.numeric(substr(colnames(pct[row.keep, ndx.keep]),
+                                         2,
+                                         3)),
+                       "_",
+                       substr(colnames(pct[row.keep, ndx.keep]),
+                              6,
+                              10),
+                       sep = "")
 dt.scr
 
 # Loadings, i.e. arrows (df.v)
@@ -652,63 +679,63 @@ graphics.off()
 #                    group2 = c("W2UVB1", 
 #                               "W2UVB2"))
 
-# Multi-factor analysis (treatment + time + interaction)----
-dtl <- list(data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_CON_0.N,
-                       X = dt1$X02w_CON_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_CON_1.N,
-                       X = dt1$X02w_CON_1.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_UVB_0.N,
-                       X = dt1$X02w_UVB_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_UVB_1.N,
-                       X = dt1$X02w_UVB_1.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_SFN_0.N,
-                       X = dt1$X02w_SFN_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_SFN_1.N,
-                       X = dt1$X02w_SFN_1.X),
-
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X15w_CON_0.N,
-                       X = dt1$X15w_CON_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X15w_CON_1.N,
-                       X = dt1$X15w_CON_1.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X15w_UVB_0.N,
-                       X = dt1$X15w_UVB_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X15w_UVB_1.N,
-                       X = dt1$X15w_UVB_1.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X15w_SFN_0.N,
-                       X = dt1$X15w_SFN_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X15w_SFN_1.N,
-                       X = dt1$X15w_SFN_1.X),
-
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X25w_CON_0.N,
-                       X = dt1$X25w_CON_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X25w_CON_1.N,
-                       X = dt1$X25w_CON_1.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X25w_UVB_0.N,
-                       X = dt1$X25w_UVB_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X25w_UVB_1.N,
-                       X = dt1$X25w_UVB_1.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X25w_SFN_0.N,
-                       X = dt1$X25w_SFN_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X25w_SFN_1.N,
-                       X = dt1$X25w_SFN_1.X))
+# # Multi-factor analysis (treatment + time + interaction)----
+# dtl <- list(data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_CON_0.N,
+#                        X = dt1$X02w_CON_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_CON_1.N,
+#                        X = dt1$X02w_CON_1.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_UVB_0.N,
+#                        X = dt1$X02w_UVB_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_UVB_1.N,
+#                        X = dt1$X02w_UVB_1.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_SFN_0.N,
+#                        X = dt1$X02w_SFN_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X02w_SFN_1.N,
+#                        X = dt1$X02w_SFN_1.X),
+# 
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X15w_CON_0.N,
+#                        X = dt1$X15w_CON_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X15w_CON_1.N,
+#                        X = dt1$X15w_CON_1.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X15w_UVB_0.N,
+#                        X = dt1$X15w_UVB_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X15w_UVB_1.N,
+#                        X = dt1$X15w_UVB_1.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X15w_SFN_0.N,
+#                        X = dt1$X15w_SFN_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X15w_SFN_1.N,
+#                        X = dt1$X15w_SFN_1.X),
+# 
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X25w_CON_0.N,
+#                        X = dt1$X25w_CON_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X25w_CON_1.N,
+#                        X = dt1$X25w_CON_1.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X25w_UVB_0.N,
+#                        X = dt1$X25w_UVB_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X25w_UVB_1.N,
+#                        X = dt1$X25w_UVB_1.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X25w_SFN_0.N,
+#                        X = dt1$X25w_SFN_0.X),
+#             data.table(dt1[, c("chr", "pos")],
+#                        N = dt1$X25w_SFN_1.N,
+#                        X = dt1$X25w_SFN_1.X))
 
             # data.table(dt1[, c("chr", "pos")],
             #            N = dt1$X25t_CON_0.N,
@@ -728,37 +755,37 @@ dtl <- list(data.table(dt1[, c("chr", "pos")],
             # data.table(dt1[, c("chr", "pos")],
             #            N = dt1$X25t_SFN_1.N,
             #            X = dt1$X25t_SFN_1.X))
-dtl
-
-BSobj <- makeBSseqData(dat = dtl,
-                       sampleNames = snames)
-BSobj
-
-design <- data.table(trt = rep(rep(c("Ctrl", "UVB", "SFN"),
-                                   each = 2),
-                               3),
-                     time = rep(c(2, 15, 25),
-                                each = 6))
-design$trt <- factor(design$trt,
-                     levels = unique(design$trt))
-
-design$time <- factor(design$time,
-                      levels = unique(design$time))
-design
-
-DMLfit <- DMLfit.multiFactor(BSobj = BSobj, 
-                             design = design,
-                             formula = ~ trt + time + trt*time)
-summary(DMLfit)
-head(DMLfit$fit$beta)
-
-# Define contrasts----
-contr <- data.table(design,
-                    DMLfit$X)
-contr
-
-# Contrasts: UVB vs. Control at Week 2----
-colnames(DMLfit$X)
+# dtl
+# 
+# BSobj <- makeBSseqData(dat = dtl,
+#                        sampleNames = snames)
+# BSobj
+# 
+# design <- data.table(trt = rep(rep(c("Ctrl", "UVB", "SFN"),
+#                                    each = 2),
+#                                3),
+#                      time = rep(c(2, 15, 25),
+#                                 each = 6))
+# design$trt <- factor(design$trt,
+#                      levels = unique(design$trt))
+# 
+# design$time <- factor(design$time,
+#                       levels = unique(design$time))
+# design
+# 
+# DMLfit <- DMLfit.multiFactor(BSobj = BSobj, 
+#                              design = design,
+#                              formula = ~ trt + time + trt*time)
+# summary(DMLfit)
+# head(DMLfit$fit$beta)
+# 
+# # Define contrasts----
+# contr <- data.table(design,
+#                     DMLfit$X)
+# contr
+# 
+# # Contrasts: UVB vs. Control at Week 2----
+# colnames(DMLfit$X)
 
 # # Test treatment effect----
 # DMLtest.UVB.Ctrl.Trt <- DMLtest.multiFactor(DMLfit, 
@@ -789,146 +816,147 @@ colnames(DMLfit$X)
 # UVB vs UVB + SFN - 2 vs 15; 2 vs 25ANE, 2 vs 25T, may be also 15 vs 25ANE, 15 vs 25T (same as above).
 # Now another project down the road, we can compare the control (no UVB),
 # 2 vs 25 vs 25 again effect. THIS will be later, NOT now.
+# 
+# # My comparisons: 
+# cnames <- c("Ctrl vs. UVB, Week 2",
+#             "Ctrl vs. UVB, Week 15",
+#             "Ctrl vs. UVB, Week 25",
+#             "UVB vs. SFN, Week 2",
+#             "UVB vs. SFN, Week 15",
+#             "UVB vs. SFN, Week 25",
+#             "Week 2 vs. Week 15, Control",
+#             "Week 2 vs. Week 25, Control",
+#             "Week 2 vs. Week 15, UVB",
+#             "Week 2 vs. Week 25, UVB",
+#             "Week 2 vs. Week 15, SFN",
+#             "Week 2 vs. Week 25, SFN",
+#             "Week 15 vs. Week 25, Control",
+#             "Week 15 vs. Week 25, UVB",
+#             "Week 15 vs. Week 25, SFN")
+# 
+# # Custom contrasts----
+# contr1 <- design
+# contr1$trttime <- paste(contr1$trt,
+#                         contr1$time,
+#                         sep = "")
+# xnames <- unique(contr1$trttime)
+# contr1[, c(xnames) := 0]
+# for (i in 4:12){
+#   contr1[, i] <- as.numeric(contr1$trttime == colnames(contr1)[i])
+# }
+# contr1
+# DMLfit1 <- DMLfit
+# DMLfit1$X <- contr1[, 4:12]
+# DMLfit1$X
+# DMLfit$X
+# 
+# mat1 <- matrix(0,
+#                nrow = length(xnames),
+#                ncol = length(cnames))
+# colnames(mat1) <- cnames
+# rownames(mat1) <- xnames
+# mat1
+# 
+# # 1. Ctrl vs. UVB, Week 2----
+# mat1[1, 1] <- -0.5
+# mat1[2, 1] <- 0.5
+# mat1
+# DMLtest.UVB.Ctrl.W2 <- DMLtest.multiFactor(DMLfit1,
+#                                            Contrast = mat1[,
+#                                                            1,
+#                                                            drop = FALSE])
+# 
+# DMLtest.UVB.Ctrl.W2 <- DMLtest.multiFactor(DMLfit1,
+#                                            coef = "UVB2")
+# head(DMLtest.UVB.Ctrl.W2)
+# 
+# DMLtest.UVB.Ctrl.W2$chr <- as.numeric(as.character(DMLtest.UVB.Ctrl.W2$chr))
+# 
+# DMLtest.UVB.Ctrl.W2 <- data.table(merge(data.table(dt1[, gene:CpG],
+#                                                    pct[, c("X02w_CON_0",
+#                                                            "X02w_CON_1",
+#                                                            "X02w_UVB_0",
+#                                                            "X02w_UVB_1")]),
+#                                         DMLtest.UVB.Ctrl.W2,
+#                                         by = c("chr",
+#                                                "pos")))
+# DMLtest.UVB.Ctrl.W2$mu.ctrl2w <- (DMLtest.UVB.Ctrl.W2$X02w_CON_0 + DMLtest.UVB.Ctrl.W2$X02w_CON_0)/2
+# DMLtest.UVB.Ctrl.W2$mu.uvb2w <- (DMLtest.UVB.Ctrl.W2$X02w_UVB_0 + DMLtest.UVB.Ctrl.W2$X02w_UVB_1)/2
+# 
+# DMLtest.UVB.Ctrl.W2[5, ]
+# 
+# # Mean vs. difference----
+# DMLtest.UVB.Ctrl.W2$mu <- (DMLtest.UVB.Ctrl.W2$mu.ctrl2w + DMLtest.UVB.Ctrl.W2$mu.uvb2w)/2
+# DMLtest.UVB.Ctrl.W2$diff <- (DMLtest.UVB.Ctrl.W2$mu.ctrl2w - DMLtest.UVB.Ctrl.W2$mu.uvb2w)
+# 
+# dtp1 <- DMLtest.UVB.Ctrl.W2[!is.na(stat), ]
+# 
+# dtp1[dtp1$diff > 0.5]
+# 
+# plot(dtp1$diff ~ dtp1$mu,
+#      pch = ".")
+# points(dtp1$diff[dtp1$fdrs < 0.01] ~ dtp1$mu[dtp1$fdrs < 0.01],
+#        pch = "x",
+#        col = "red")
+# 
+# # 1. SFN vs. Control, Week 2----
+# mat1[1, 2] <- -0.5
+# mat1[3, 2] <- 0.5
+# mat1
+# DMLtest.SFN.Ctrl.W2 <- DMLtest.multiFactor(DMLfit1,
+#                                            Contrast = mat1[,
+#                                                            2,
+#                                                            drop = FALSE])
+# head(DMLtest.SFN.Ctrl.W2)
+# 
+# DMLtest.SFN.Ctrl.W2$chr <- as.numeric(as.character(DMLtest.SFN.Ctrl.W2$chr))
+# 
+# DMLtest.SFN.Ctrl.W2 <- data.table(merge(data.table(dt1[, gene:CpG],
+#                                                    pct[, c("X02w_CON_0",
+#                                                            "X02w_CON_1",
+#                                                            "X02w_UVB_0",
+#                                                            "X02w_UVB_1")]),
+#                                         DMLtest.SFN.Ctrl.W2,
+#                                         by = c("chr",
+#                                                "pos")))
+# DMLtest.SFN.Ctrl.W2$mu.ctrl2w <- (DMLtest.SFN.Ctrl.W2$X02w_CON_0 + DMLtest.SFN.Ctrl.W2$X02w_CON_0)/2
+# DMLtest.SFN.Ctrl.W2$mu.uvb2w <- (DMLtest.SFN.Ctrl.W2$X02w_UVB_0 + DMLtest.SFN.Ctrl.W2$X02w_UVB_1)/2
+# 
+# DMLtest.SFN.Ctrl.W2[5, ]
+# 
+# # Mean vs. difference----
+# DMLtest.SFN.Ctrl.W2$mu <- (DMLtest.SFN.Ctrl.W2$mu.ctrl2w + DMLtest.SFN.Ctrl.W2$mu.uvb2w)/2
+# DMLtest.SFN.Ctrl.W2$diff <- (DMLtest.SFN.Ctrl.W2$mu.ctrl2w - DMLtest.SFN.Ctrl.W2$mu.uvb2w)
+# 
+# dtp1 <- DMLtest.SFN.Ctrl.W2[!is.na(stat), ]
+# 
+# plot(dtp1$diff ~ dtp1$mu,
+#      pch = ".")
+# points(dtp1$diff[dtp1$fdrs < 0.01] ~ dtp1$mu[dtp1$fdrs < 0.01],
+#        pch = "x",
+#        col = "red")
 
-# My comparisons: 
-cnames <- c("Ctrl vs. UVB, Week 2",
-            "Ctrl vs. UVB, Week 15",
-            "Ctrl vs. UVB, Week 25",
-            "UVB vs. SFN, Week 2",
-            "UVB vs. SFN, Week 15",
-            "UVB vs. SFN, Week 25",
-            "Week 2 vs. Week 15, Control",
-            "Week 2 vs. Week 25, Control",
-            "Week 2 vs. Week 15, UVB",
-            "Week 2 vs. Week 25, UVB",
-            "Week 2 vs. Week 15, SFN",
-            "Week 2 vs. Week 25, SFN",
-            "Week 15 vs. Week 25, Control",
-            "Week 15 vs. Week 25, UVB",
-            "Week 15 vs. Week 25, SFN")
-
-# Custom contrasts----
-contr1 <- design
-contr1$trttime <- paste(contr1$trt,
-                        contr1$time,
-                        sep = "")
-xnames <- unique(contr1$trttime)
-contr1[, c(xnames) := 0]
-for (i in 4:12){
-  contr1[, i] <- as.numeric(contr1$trttime == colnames(contr1)[i])
-}
-contr1
-DMLfit1 <- DMLfit
-DMLfit1$X <- contr1[, 4:12]
-DMLfit1$X
-DMLfit$X
-
-mat1 <- matrix(0,
-               nrow = length(xnames),
-               ncol = length(cnames))
-colnames(mat1) <- cnames
-rownames(mat1) <- xnames
-mat1
-
-# 1. Ctrl vs. UVB, Week 2----
-mat1[1, 1] <- -0.5
-mat1[2, 1] <- 0.5
-mat1
-DMLtest.UVB.Ctrl.W2 <- DMLtest.multiFactor(DMLfit1,
-                                           Contrast = mat1[,
-                                                           1,
-                                                           drop = FALSE])
-
-DMLtest.UVB.Ctrl.W2 <- DMLtest.multiFactor(DMLfit1,
-                                           coef = "UVB2")
-head(DMLtest.UVB.Ctrl.W2)
-
-DMLtest.UVB.Ctrl.W2$chr <- as.numeric(as.character(DMLtest.UVB.Ctrl.W2$chr))
-
-DMLtest.UVB.Ctrl.W2 <- data.table(merge(data.table(dt1[, gene:CpG],
-                                                   pct[, c("X02w_CON_0",
-                                                           "X02w_CON_1",
-                                                           "X02w_UVB_0",
-                                                           "X02w_UVB_1")]),
-                                        DMLtest.UVB.Ctrl.W2,
-                                        by = c("chr",
-                                               "pos")))
-DMLtest.UVB.Ctrl.W2$mu.ctrl2w <- (DMLtest.UVB.Ctrl.W2$X02w_CON_0 + DMLtest.UVB.Ctrl.W2$X02w_CON_0)/2
-DMLtest.UVB.Ctrl.W2$mu.uvb2w <- (DMLtest.UVB.Ctrl.W2$X02w_UVB_0 + DMLtest.UVB.Ctrl.W2$X02w_UVB_1)/2
-
-DMLtest.UVB.Ctrl.W2[5, ]
-
-# Mean vs. difference----
-DMLtest.UVB.Ctrl.W2$mu <- (DMLtest.UVB.Ctrl.W2$mu.ctrl2w + DMLtest.UVB.Ctrl.W2$mu.uvb2w)/2
-DMLtest.UVB.Ctrl.W2$diff <- (DMLtest.UVB.Ctrl.W2$mu.ctrl2w - DMLtest.UVB.Ctrl.W2$mu.uvb2w)
-
-dtp1 <- DMLtest.UVB.Ctrl.W2[!is.na(stat), ]
-
-dtp1[dtp1$diff > 0.5]
-
-plot(dtp1$diff ~ dtp1$mu,
-     pch = ".")
-points(dtp1$diff[dtp1$fdrs < 0.01] ~ dtp1$mu[dtp1$fdrs < 0.01],
-       pch = "x",
-       col = "red")
-
-# 1. SFN vs. Control, Week 2----
-mat1[1, 2] <- -0.5
-mat1[3, 2] <- 0.5
-mat1
-DMLtest.SFN.Ctrl.W2 <- DMLtest.multiFactor(DMLfit1,
-                                           Contrast = mat1[,
-                                                           2,
-                                                           drop = FALSE])
-head(DMLtest.SFN.Ctrl.W2)
-
-DMLtest.SFN.Ctrl.W2$chr <- as.numeric(as.character(DMLtest.SFN.Ctrl.W2$chr))
-
-DMLtest.SFN.Ctrl.W2 <- data.table(merge(data.table(dt1[, gene:CpG],
-                                                   pct[, c("X02w_CON_0",
-                                                           "X02w_CON_1",
-                                                           "X02w_UVB_0",
-                                                           "X02w_UVB_1")]),
-                                        DMLtest.SFN.Ctrl.W2,
-                                        by = c("chr",
-                                               "pos")))
-DMLtest.SFN.Ctrl.W2$mu.ctrl2w <- (DMLtest.SFN.Ctrl.W2$X02w_CON_0 + DMLtest.SFN.Ctrl.W2$X02w_CON_0)/2
-DMLtest.SFN.Ctrl.W2$mu.uvb2w <- (DMLtest.SFN.Ctrl.W2$X02w_UVB_0 + DMLtest.SFN.Ctrl.W2$X02w_UVB_1)/2
-
-DMLtest.SFN.Ctrl.W2[5, ]
-
-# Mean vs. difference----
-DMLtest.SFN.Ctrl.W2$mu <- (DMLtest.SFN.Ctrl.W2$mu.ctrl2w + DMLtest.SFN.Ctrl.W2$mu.uvb2w)/2
-DMLtest.SFN.Ctrl.W2$diff <- (DMLtest.SFN.Ctrl.W2$mu.ctrl2w - DMLtest.SFN.Ctrl.W2$mu.uvb2w)
-
-dtp1 <- DMLtest.SFN.Ctrl.W2[!is.na(stat), ]
-
-plot(dtp1$diff ~ dtp1$mu,
-     pch = ".")
-points(dtp1$diff[dtp1$fdrs < 0.01] ~ dtp1$mu[dtp1$fdrs < 0.01],
-       pch = "x",
-       col = "red")
-
-snames <- c("W2Ctrl1",
-            "W2Ctrl2",
-            "W2UVB1",
+# Week2 Comparisons----
+snames <- c("W2UVB1",
             "W2UVB2",
+            "W2Ctrl1",
+            "W2Ctrl2",
             "W2SFN1",
             "W2SFN2")
 
 # Multi-factor analysis (treatment + time + interaction)----
 dtl <- list(data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_CON_0.N,
-                       X = dt1$X02w_CON_0.X),
-            data.table(dt1[, c("chr", "pos")],
-                       N = dt1$X02w_CON_1.N,
-                       X = dt1$X02w_CON_1.X),
-            data.table(dt1[, c("chr", "pos")],
                        N = dt1$X02w_UVB_0.N,
                        X = dt1$X02w_UVB_0.X),
             data.table(dt1[, c("chr", "pos")],
                        N = dt1$X02w_UVB_1.N,
                        X = dt1$X02w_UVB_1.X),
+            data.table(dt1[, c("chr", "pos")],
+                       N = dt1$X02w_CON_0.N,
+                       X = dt1$X02w_CON_0.X),
+            data.table(dt1[, c("chr", "pos")],
+                       N = dt1$X02w_CON_1.N,
+                       X = dt1$X02w_CON_1.X),
             data.table(dt1[, c("chr", "pos")],
                        N = dt1$X02w_SFN_0.N,
                        X = dt1$X02w_SFN_0.X),
@@ -941,7 +969,9 @@ BSobj <- makeBSseqData(dat = dtl,
                        sampleNames = snames)
 BSobj
 
-design <- data.table(trt = rep(rep(c("UVB", "Ctrl", "SFN"),
+design <- data.table(trt = rep(rep(c("UVB", 
+                                     "Ctrl", 
+                                     "SFN"),
                                    each = 2),
                                1))
 design$trt <- factor(design$trt,
@@ -958,10 +988,12 @@ colnames(DMLfit$X)
 # a. Control vs. UVB at Week 2----
 DMLtest.Ctrl.UVB.W2 <- DMLtest.multiFactor(DMLfit,
                                            coef = "trtCtrl")
-head(DMLtest.Ctrl.UVB.W2)
 
 DMLtest.Ctrl.UVB.W2$chr <- as.numeric(as.character(DMLtest.Ctrl.UVB.W2$chr))
-
+head(pct[, c("X02w_CON_0",
+             "X02w_CON_1",
+             "X02w_UVB_0",
+             "X02w_UVB_1")])
 DMLtest.Ctrl.UVB.W2 <- data.table(merge(data.table(dt1[, gene:CpG],
                                                    pct[, c("X02w_CON_0",
                                                            "X02w_CON_1",
@@ -977,20 +1009,24 @@ DMLtest.Ctrl.UVB.W2$mu.uvb2w <- (DMLtest.Ctrl.UVB.W2$X02w_UVB_0 + DMLtest.Ctrl.U
 DMLtest.Ctrl.UVB.W2$mu <- (DMLtest.Ctrl.UVB.W2$mu.ctrl2w + DMLtest.Ctrl.UVB.W2$mu.uvb2w)/2
 DMLtest.Ctrl.UVB.W2$diff <- (DMLtest.Ctrl.UVB.W2$mu.ctrl2w - DMLtest.Ctrl.UVB.W2$mu.uvb2w)
 
+# Green: hypomethylated in UVB; Red: hypermethylated in UVB
+# NOTE: FLIP THE FIGURE!
 dtp1 <- DMLtest.Ctrl.UVB.W2[!is.na(stat), ]
-
-tiff(filename = "tmp/skin_uvb_maplot_ctrl_uvb_w2.tiff",
+tiff(filename = "tmp/skin_uvb_maplot_uvb-ctrl_w2.tiff",
      height = 6,
      width = 6,
      units = 'in',
      res = 300,
      compression = "lzw+p")
-plot(dtp1$diff ~ dtp1$mu,
+plot((-1)*dtp1$diff ~ dtp1$mu,
      pch = ".",
      xlab = "Mean",
      ylab = "Difference",
-     main = "Proportion of Methylation in Control vs. UVB\nat Two Weeks, FDR < 0.01")
-points(dtp1$diff[dtp1$fdrs < 0.01] ~ dtp1$mu[dtp1$fdrs < 0.01],
+     main = "Proportion of Methylation in UVB vs. Control\nat Week 2, FDR < 0.1")
+points((-1)*dtp1$diff[dtp1$fdrs < 0.1 & dtp1$diff > 0] ~ dtp1$mu[dtp1$fdrs < 0.1 & dtp1$diff > 0] ,
+       pch = "x",
+       col = "green")
+points((-1)*dtp1$diff[dtp1$fdrs < 0.1 & dtp1$diff < 0] ~ dtp1$mu[dtp1$fdrs < 0.1 & dtp1$diff < 0] ,
        pch = "x",
        col = "red")
 abline(h = c(-0.2, 0.2),
@@ -1001,7 +1037,6 @@ graphics.off()
 DMLtest.SFN.UVB.W2 <- DMLtest.multiFactor(DMLfit,
                                           coef = "trtSFN")
 head(DMLtest.SFN.UVB.W2)
-
 DMLtest.SFN.UVB.W2$chr <- as.numeric(as.character(DMLtest.SFN.UVB.W2$chr))
 
 DMLtest.SFN.UVB.W2 <- data.table(merge(data.table(dt1[, gene:CpG],
@@ -1019,8 +1054,8 @@ DMLtest.SFN.UVB.W2$mu.uvb2w <- (DMLtest.SFN.UVB.W2$X02w_UVB_0 + DMLtest.SFN.UVB.
 DMLtest.SFN.UVB.W2$mu <- (DMLtest.SFN.UVB.W2$mu.sfn2w + DMLtest.SFN.UVB.W2$mu.uvb2w)/2
 DMLtest.SFN.UVB.W2$diff <- (DMLtest.SFN.UVB.W2$mu.sfn2w - DMLtest.SFN.UVB.W2$mu.uvb2w)
 
-dtp1 <- DMLtest.SFN.UVB.W2# [!is.na(stat), ]
-
+# Green: hypomethylated in UVB; Red: hypermethylated in UVB
+dtp1 <- DMLtest.SFN.UVB.W2[!is.na(stat), ]
 tiff(filename = "tmp/skin_uvb_maplot_sfn_uvb_w2.tiff",
      height = 6,
      width = 6,
@@ -1031,12 +1066,75 @@ plot(dtp1$diff ~ dtp1$mu,
      pch = ".",
      xlab = "Mean",
      ylab = "Difference",
-     main = "Proportion of Methylation in SFN vs. UVB\nat Two Weeks, FDR < 0.01")
-points(dtp1$diff[dtp1$fdrs < 0.01] ~ dtp1$mu[dtp1$fdrs < 0.01],
+     main = "Proportion of Methylation in SFN vs. UVB\nat Weeks 2, FDR < 0.1")
+points(dtp1$diff[dtp1$fdrs < 0.1 & dtp1$diff > 0] ~ dtp1$mu[dtp1$fdrs < 0.1 & dtp1$diff > 0] ,
+       pch = "x",
+       col = "green")
+points(dtp1$diff[dtp1$fdrs < 0.1 & dtp1$diff < 0] ~ dtp1$mu[dtp1$fdrs < 0.1 & dtp1$diff < 0] ,
        pch = "x",
        col = "red")
 abline(h = c(-0.2, 0.2),
        lty = 2)
+graphics.off()
+
+# Heatmaps----
+uvb.hyper.1 <- unique(DMLtest.Ctrl.UVB.W2[fdrs < 0.1 & diff < 0]$gene)
+uvb.hyper.2 <- unique(DMLtest.SFN.UVB.W2[fdrs < 0.1 & dtp1$diff < 0]$gene)
+
+hyper <- uvb.hyper.1[uvb.hyper.1 %in% uvb.hyper.2]
+
+l1 <- DMLtest.Ctrl.UVB.W2[gene %in% hyper, c("gene", 
+                                             "pos", 
+                                             "diff")]
+l1$diff <- (-1)*l1$diff
+
+l2 <- DMLtest.SFN.UVB.W2[gene %in% hyper, c("gene", 
+                                            "pos", 
+                                            "diff")]
+ll <- merge(l1,
+            l2,
+            by = c("gene", 
+                   "pos"))
+ll$reg <- paste(ll$gene,
+                ll$pos,
+                sep = "_")
+
+ll <- melt.data.table(data = ll,
+                      id.vars = 5,
+                      measure.vars = 3:4,
+                      variable.name = "Comparison",
+                      value.name = "Methyl Diff")
+ll$reg <- factor(ll$reg)
+ll$Comparison <- factor(ll$Comparison,
+                        levels = c("diff.x",
+                                   "diff.y"),
+                        labels = c("UVB - Ctrl",
+                                   "SFN - UVB"))
+p1 <- ggplot(data = ll) +
+  geom_tile(aes(x =  Comparison,
+                y = reg, 
+                fill = `Methyl Diff`),
+            color = "black") +
+  scale_fill_gradient2(low = "red", 
+                       high = "green", 
+                       mid = "black", 
+                       midpoint = 0, 
+                       # limit = c(-10, 10), 
+                       name = "Methyl Diff") +
+  scale_x_discrete(expand = c(0, 0)) + 
+  scale_y_discrete("Gene Region",
+                   expand = c(0, 0)) +
+  ggtitle("Week 2 Differences in Methylation") +
+  theme(plot.title = element_text(hjust = 0.5))
+p1
+
+tiff(filename = "tmp/skin_uvb_heatmap_w2.tiff",
+     height = 30,
+     width = 6,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
 graphics.off()
 
 # sessionInfo()
