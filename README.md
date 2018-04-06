@@ -5,8 +5,12 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ---
 
 ## Daily Logs
+### 04/05/2018
+* Changed hitmaps to donut plots; added more comparisons
+
 ### 03/29/2018
-* Pairwise comaprisons 
+* Pairwise comaprisons   
+* Added MA plots, heatmaps, and counts for Venn diagrams
 
 ### 03/22/2018
 * Added DSS script
