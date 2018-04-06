@@ -7,6 +7,7 @@ Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 ## Daily Logs
 ### 04/05/2018
 * Changed hitmaps to donut plots; added more comparisons
+* ToDo: tumor vs. normal tissue at week 25
 
 ### 03/29/2018
 * Pairwise comaprisons   
