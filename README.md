@@ -3,6 +3,17 @@ Scientist: Yuqing (Anne) Yang
 Data Analysis: Ran Yin, Renyi Wu, Davit Sargsyan
 
 ---
+## File legend
+### Data
+1. **data/renyi_methylseq_02092018/combined_dmr_default__uvb-skin_renyi_02092018.csv"**: Methyl-seq data processed by Renyi
+2. **data/renyi_dedup_rnaseq_data/featurescounts_uvb-skin_dedup_renyi_2-9-2018.csv**: RNA-seq data processed by Renyi
+
+### Scripts
+1. : Methyl-seq alignment
+2. : RNA-seq alignment
+3. **skin_uvb_methylseq_dss_v2.R**: Methyl-seq analysis
+4. **skin_uvb_deseq2_v1.R**: RNA-seq Analysis
+5. **skin_uvb_rna_vs_dna_v1.R**: RNA vs. DNA
 
 ## Daily Logs
 ### 04/05/2018

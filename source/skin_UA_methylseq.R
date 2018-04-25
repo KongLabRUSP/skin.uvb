@@ -1,13 +1,6 @@
-# |----------------------------------------------------------------------------------|
-# | Project: Skin UVB SKH1 mouse model treated with UA/SFN                           |
-# | Script: Methyl-seq data analysis and visualization using DSS                     |
-# | Coordinator: Ran Yin, Renyi Wu                                                   |
-# | Author: Davit Sargsyan                                                           |
-# | Created: 03/17/2018                                                              |
-# | Modified:04/05/2018, DS: changed hitmaps to donut plots; added more comparisons  |
-# |----------------------------------------------------------------------------------|
-# sink(file = "tmp/log_skin_uvb_dna_v2.txt")
-date()
+#UA project, modifiedy from UVB-SFN script
+# Ran Yin
+
 
 # NOTE: several packages, e.g. Rcpp, MASS, etc., might be deleted manually and reinstalled
 # Workflow: https://www.bioconductor.org/help/workflows/rnaseqGene/
@@ -52,21 +45,25 @@ t1$Feature <- factor(t1$Feature,
                      levels = as.character(t1$Feature[order(t1$Frequency,
                                                             decreasing = TRUE)]))
 t1
-p1 <- ggplot(t1,
-             aes(x = "",
-                 y = Frequency,
-                 fill = Feature)) +
-  geom_bar(width = 1, 
-           stat = "identity",
-           color = "black") +
-  coord_polar("y",
-              start = 0,
-              direction = -1) +
-  scale_x_discrete("") +
-  ggtitle("Annotation by Region (%)")
-p1 
 
-tiff(filename = "tmp/skin_uvb_anno_by_reg.tiff",
+p1 <-upsetplot(peakAnno1, vennpie=TRUE)
+
+# 
+# p1 <- ggplot(t1,
+#              aes(x = "",
+#                  y = Frequency,
+#                  fill = Feature)) +
+#   geom_bar(width = 1, 
+#            stat = "identity",
+#            color = "black") +
+#   coord_polar("y",
+#               start = 0,
+#               direction = -1) +
+#   scale_x_discrete("") +
+#   ggtitle("Annotation by Region (%)")
+# p1 
+
+tiff(filename = "tmp/skin_ua_anno_by_reg.tiff",
      height = 5,
      width = 5,
      units = 'in',
@@ -85,21 +82,26 @@ dt1 <- dt1[!is.na(dt1$SYMBOL == "NA"), ]
 dt1
 # Removed 12 rows
 
-# Subset data; remove Ursolic Acid samles----
+# Subset data; remove SFN samples----
+head(dt1)
+
+# remove all SFN samples from data----
 dt1 <- data.table(gene = dt1$SYMBOL,
                   anno = dt1$annotation,
                   geneId = dt1$geneId,
                   chr = dt1$geneChr,
                   pos = dt1$start,
                   reg = NA,
-                  dt1[, CpG:X02w_SFN_1.X],
-                  dt1[, X02w_UVB_0.N:X15w_SFN_1.X], 
-                  dt1[, X15w_UVB_0.N:X25t_SFN_1.X],
-                  dt1[, X25t_UVB_0.N:X25w_SFN_1.X],
-                  dt1[, X25w_UVB_0.N:X25w_UVB_1.X],
+                  dt1[, CpG:X02w_CON_1.X],
+                  dt1[, X02w_UAA_0.N:X15w_CON_1.X], 
+                  dt1[, X15w_UAA_0.N:X25t_CON_1.X],
+                  dt1[, X25t_UAA_0.N:X25w_CON_1.X],
+                  dt1[, X25w_UAA_0.N:X25w_UVB_1.X],
                   geneName = dt1$GENENAME)
 dt1
 
+head(dt1)
+colnames(dt1)
 # Regions----
 kable(data.table(table(substr(dt1$anno, 1, 9))))
 # |V1        |     N|
@@ -146,7 +148,7 @@ kable(data.table(table(dt1$reg)))
 # |Body       | 73343|
 # |3' UTR     |  4869|
 # |Downstream | 71981|
-
+colnames(dt1)
 # CpG distribution and coverage----
 p2 <- ggplot(dt1,
              aes(x = CpG)) +
@@ -165,21 +167,21 @@ p2 <- ggplot(dt1,
   ggtitle("Distribution of DMR by Number of CpG and Region")
 p2
 
-tiff(filename = "tmp/skin_uvb_CpG_by_reg_hist.tiff",
+tiff(filename = "tmp/skin_ua_CpG_by_reg_hist.tiff",
      height = 8,
      width = 12,
      units = 'in',
-     res = 300,
+     res = 600,
      compression = "lzw+p")
 print(p2)
 graphics.off()
 
 # Percent methylation----
+head(dt1)
 tmp <- as.matrix(dt1[, X02w_CON_0.N:X25w_UVB_1.X])
 head(tmp)
 
 # ? as.matrix
-
 dtN <- tmp[, seq(1,
                  ncol(tmp) - 1, 
                  by = 2)]
@@ -201,7 +203,7 @@ head(pct)
 dim(pct[rowSums(pct) == 0, ])
 dim(pct[is.na(rowSums(pct)), ])
 dim(pct)
-# 53,894 (2,548 with repalced zeros) out of 237,858 such rows. Remove.
+# 51,425 (24? with repalced zeros) out of 237,858 such rows. Remove.
 
 ndx.keep <- rowSums(pct) != 0 & !is.na(rowSums(pct))
 pct <- pct[ndx.keep, ]
@@ -209,7 +211,7 @@ dt1 <- dt1[ndx.keep, ]
 dtN <- dtN[ndx.keep, ]
 dtX <- dtX[ndx.keep, ]
 dim(dtX)
-# 183,964 remaine
+# 186,433 remaine
 
 # Hits per CpG average (i.e. vertical coverage)----
 t1 <- apply(dtN,
@@ -243,17 +245,17 @@ for (i in 1:(ncol(pct)/2)) {
                         pct[, 2*i]),
                   FUN = mean,
                   by = list(rep(dt1$reg, 2)))
-  
+
   x2 <- aggregate(x = c(pct[, 2*i - 1],
                         pct[, 2*i]),
                   FUN = sd,
                   by = list(rep(dt1$reg, 2)))
   mumth[[i]] <- data.table(rep(colnames(pct)[[2*i]],
                                5),
-                           merge(x1, 
+                           merge(x1,
                                  x2,
                                  by = "Group.1"))
-  
+
   colnames(mumth[[i]]) <- c("trt",
                             "reg",
                             "mu",
@@ -263,6 +265,7 @@ mumth <- do.call("rbind",
                  mumth)
 mumth
 mumth$Time <- substr(mumth$trt, 1, 4)
+mumth
 mumth$Time <- mumth$Time <- factor(mumth$Time,
                                    levels = c("X02w",
                                               "X15w",
@@ -273,16 +276,21 @@ mumth$Time <- mumth$Time <- factor(mumth$Time,
                                               "Week 25",
                                               "Week 25 Tumor"))
 
+mumth
 mumth$Treatment <- substr(mumth$trt, 6, 8)
+mumth
+
 mumth$Treatment <- factor(mumth$Treatment,
                           levels = c("CON",
                                      "UVB",
-                                     "SFN"),
+                                     "UAA"),
                           labels = c("Control",
                                      "UVB",
-                                     "SFN + UVB"))
-
+                                     "UA + UVB"))
+mumth
 mumth$`Methylation (%)` <- 100*mumth$mu
+mumth
+head(mumth)
 
 p1 <- ggplot(mumth,
              aes(x = reg,
@@ -300,11 +308,11 @@ p1 <- ggplot(mumth,
         axis.text.x = element_text(angle = 45,
                                    hjust = 1))
 p1
-tiff(filename = "tmp/skin_uvb_avg_methyl_by_reg.tiff",
+tiff(filename = "tmp/skin_ua_avg_methyl_by_reg.tiff",
      height = 6,
      width = 7,
      units = 'in',
-     res = 300,
+     res = 600,
      compression = "lzw+p")
 print(p1)
 graphics.off()
@@ -331,11 +339,11 @@ p2 <- ggplot(mumth,
         axis.text.x = element_text(angle = 45,
                                    hjust = 1))
 p2
-tiff(filename = "tmp/skin_uvb_avg_sd_methyl_by_reg.tiff",
+tiff(filename = "tmp/skin_ua_avg_sd_methyl_by_reg.tiff",
      height = 6,
      width = 7,
      units = 'in',
-     res = 300,
+     res = 600,
      compression = "lzw+p")
 print(p2)
 graphics.off()
@@ -345,6 +353,7 @@ tumor <- rep("", ncol(pct))
 tumor[substr(colnames(pct),
              4,
              4) == "t"] <- "t"
+tumor
 snames <- paste("Week",
                 as.numeric(substr(colnames(pct),
                                   2,
@@ -366,7 +375,7 @@ rownames(sampleDists) <- colnames(sampleDists) <- snames
 # Make zeros less influential
 diag(sampleDists) <- min(dst) - 5
 
-tiff(filename = "tmp/skin_uvb_samples_cluster.tiff",
+tiff(filename = "tmp/skin_ua_samples_cluster.tiff",
      height = 8,
      width = 8,
      units = 'in',
@@ -396,14 +405,15 @@ dt.scr <- data.table(m1$x[, choices])
 dt.scr$grp <- substr(colnames(pct),
                      6,
                      8)
+dt.scr
 dt.scr$grp <- factor(dt.scr$grp,
                      levels = c("CON",
                                 "UVB",
-                                "SFN"),
+                                "UAA"),
                      labels = c("Control",
                                 "UVB",
-                                "SFN + UVB"))
-
+                                "UA + UVB"))
+dt.scr
 dt.scr$sample <- snames
 dt.scr
 
@@ -437,15 +447,15 @@ p1 <- ggplot(data = dt.rot,
   scale_y_continuous(u.axis.labs[2]) +
   scale_fill_manual(name = "Treatment",
                     values = c("white", "red", "blue", "green")) +
-  ggtitle("PCA of Percent Methylation") +
+  ggtitle("UA_UVB PCA of Percent Methylation") +
   theme(plot.title = element_text(hjust = 0.5,
                                   size = 10))
 p1
-tiff(filename = "tmp/skin_uvb_pca_plot.tiff",
+tiff(filename = "tmp/ua_tumor_pca_plot.tiff",
      height = 6,
      width = 7,
      units = 'in',
-     res = 300,
+     res = 600,
      compression = "lzw+p")
 print(p1)
 graphics.off()
@@ -453,8 +463,8 @@ graphics.off()
 # Clustering, no tumor----
 ndx.keep <- which(!(colnames(pct) %in% c("X25t_CON_0",
                                          "X25t_CON_1",
-                                         "X25t_SFN_0",
-                                         "X25t_SFN_1",
+                                         "X25t_UAA_0",
+                                         "X25t_UAA_1",
                                          "X25t_UVB_0",
                                          "X25t_UVB_1")))
 
@@ -466,11 +476,11 @@ sampleDists
 # Make zeros less influential
 diag(sampleDists) <- min(dst) - 5
 
-tiff(filename = "tmp/skin_uvb_samples_cluster_no_tumor.tiff",
+tiff(filename = "tmp/ua_samples_cluster_no_tumor.tiff",
      height = 8,
      width = 8,
      units = 'in',
-     res = 300,
+     res = 600,
      compression = "lzw+p")
 heatmap(sampleDists,
         symm = TRUE,
@@ -509,10 +519,10 @@ dt.scr$grp <- substr(colnames(pct[row.keep, ndx.keep]),
 dt.scr$grp <- factor(dt.scr$grp,
                      levels = c("CON",
                                 "UVB",
-                                "SFN"),
+                                "UAA"),
                      labels = c("Control",
                                 "UVB",
-                                "SFN + UVB"))
+                                "UA + UVB"))
 
 dt.scr$sample <- snames[-c(13:18)]
 dt.scr
@@ -547,15 +557,15 @@ p1 <- ggplot(data = dt.rot,
   scale_y_continuous(u.axis.labs[2]) +
   scale_fill_manual(name = "Treatment",
                     values = c("white", "red", "blue", "green")) +
-  ggtitle("PCA of Percent Methylation") +
+  ggtitle("UA_PCA of Percent Methylation") +
   theme(plot.title = element_text(hjust = 0.5,
                                   size = 10))
 p1
-tiff(filename = "tmp/skin_uvb_pca_plot_no_tumor.tiff",
+tiff(filename = "tmp/ua_no_tumor_pca_plot.tiff",
      height = 6,
      width = 7,
      units = 'in',
-     res = 300,
+     res = 600,
      compression = "lzw+p")
 print(p1)
 graphics.off()
@@ -765,6 +775,17 @@ abline(h = c(-0.2, 0.2),
        lty = 2)
 graphics.off()
 
+#------try UA_UVB 
+#-=-----
+#----
+#---repeat what happened but change control to UVB 11:35 4-19
+
+
+
+
+
+
+
 # Heatmaps 1----
 sign.15.02 <- c(unique(DMLtest.Ctrl.W15.W2[fdrs < 0.01 & diff > 0.2]$pos),
                 unique(DMLtest.Ctrl.W15.W2[fdrs < 0.01 & diff < -0.2]$pos))
@@ -834,8 +855,8 @@ p1 <- ggplot(data = ll) +
                 y = reg,
                 label = unique(reg),
                 angle = 90 + seq(from = 0,
-                            to = 360,
-                            length.out = nlevels(reg))[as.numeric(reg)]),
+                                 to = 360,
+                                 length.out = nlevels(reg))[as.numeric(reg)]),
             hjust = 0) +
   scale_fill_gradient2(low = "red", 
                        high = "green", 

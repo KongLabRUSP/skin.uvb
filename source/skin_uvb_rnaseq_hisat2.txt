@@ -1,0 +1,34 @@
+# Project: Skin UVB
+# Author: Renyi Wu
+# Created: 02/08/2018
+
+---
+
+
+administrator@SOP-1482:~/Documents/Renyi/RNA_skin_uvb$ 
+for i in /media/administrator/datastorage/FastQ_2017/RNA_seq/Anne_RUCDR_skin/renyi/*.gz; do hisat2 -p 6 -x ~/genomes/Mus_musculus/UCSC/mm10/Hisat2_Genome/genome -U $i | samtools view -bh -o ${i%.fastq.gz}.bam -; date; done #save bam files on datastorage, the same folder as the original fastq.gz files.
+
+administrator@SOP-1482:~/Documents/Renyi/RNA_skin_uvb$ ln -s /media/administrator/datastorage/FastQ_2017/RNA_seq/Anne_RUCDR_skin/renyi/*.gz .
+administrator@SOP-1482:~/Documents/Renyi/RNA_skin_uvb$ for i in *.gz; do hisat2 -p 8 -x ~/genomes/Mus_musculus/UCSC/mm10/Hisat2_Genome/genome -t --mm -U $i | samtools view -bh -o ./${i%.fastq.gz}.bam -; date; done
+
+
+# FeatureCounts
+ 
+
+administrator@SOP-1482:~/Documents/Renyi/RNA_skin_uvb$ featureCounts -M -T 8 -a ~/genomes/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf -o featurescounts-M_uvb-skin_renyi_2-8-2018.csv *.bam
+mkdir bam && move *. bam bam/
+
+
+# Sort
+for i in *.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done
+
+# Dedup
+ for i in *.bam; do java -jar ~/tools/picard/picard.jar MarkDuplicates I=$i O=${i%.sorted.bam}.dedup.bam M=${i%.sorted.bam}.dedup.txt REMOVE_DUPLICATES=true; done
+
+# Feature Counts on deduplicated reads
+# 1 Use -M flag to keep multiple mapping reads.
+featureCounts -M -T 8 -a ~/genomes/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf -o featurescounts-M_uvb-skin_dedup_renyi_2-8-2018.csv *.dedup.bam
+
+#2 Use no -M flag.
+
+featureCounts -T 8 -a ~/genomes/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf -o featurescounts_uvb-skin_dedup_renyi_2-9-2018.csv *.dedup.bam
