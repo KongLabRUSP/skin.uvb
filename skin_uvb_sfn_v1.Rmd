@@ -1,5 +1,5 @@
 ---
-title: "Skin UVB SFN"
+title: "kin UVB SKH1 mouse model treated with SFN "
 output:
   html_notebook: default
   html_document:
@@ -7,246 +7,98 @@ output:
   pdf_document: default
 ---
 
-
-```{r Data, warning=FALSE,echo=FALSE,message=FALSE}
-# NOTE (DS, 02/09/2018): mean plots were incorrect; using new function
+# Part 1: RNA
+```{r header, warning = FALSE, echo = FALSE, message = FALSE}
 require(data.table)
-require(phyloseq)
+require(DESeq2)
+require(readxl)
+require(BiocParallel)
 require(ggplot2)
-require(plotly)
-require(DT)
-require(shiny)
-source("source/functions_v2.R")
+require(knitr)
+# NOTE on DESeq2 Output: 'baseMean' is the average of the normalized count values, 
+# divided by the size factors, taken over all samples in the DESeqDataSet
+```
 
+## Load RNA samples
+Out of 30 samples, we selected 18 for this study. These are the normal tissue samples form the control, the UVA and the UVA+SFN treatment groups. normal tissue samples from the UVB_UA groups as well as tumor samples were excluded from this analysis.     
+First, we removed 7,148 genes with zero counts in > 80% (> 14 out of 18) of samples. 17,273 out of 24,421 genes left. 
+         
+```{r data_rna, warning = FALSE, echo = FALSE, message = FALSE}
 # Load data----
-# Counts
-load("data/ps.RData")
+dt0 <- fread("data/renyi_dedup_rnaseq_data/featurescounts_uvb-skin_dedup_renyi_2-9-2018.csv",
+             skip = 1)
 
-# Taxonomy
-load("data/taxa.plus.RData")
-taxa <- data.table(seq16s = rownames(taxa.plus),
-                   taxa.plus)
+# Remove unused columns----
+dt1 <- dt0[, c(1, 6:ncol(dt0)), with = FALSE]
 
-# Samples
-# ps@sam_data
-load("data/samples.RData")
-samples$Sample <- substr(x = samples$Name,
-                         start = 1,
-                         stop = 5)
-samples$Sample[samples$Sample %in% c("4A_S1",
-                                     "4B_S2",
-                                     "4C_S3")] <- 
-  substr(x = samples$Sample[samples$Sample %in% c("4A_S1",
-                                                  "4B_S2",
-                                                  "4C_S3")],
-         start = 1,
-         stop = 2)
-DT::datatable(samples)
+cnames <- colnames(dt1)[-c(1:2)]
+cnames <- gsub(x = cnames,
+               pattern = ".dedup.bam",
+               replacement = "")
+colnames(dt1)[-c(1:2)] <- cnames
+
+# ATTENTION! In this analysis, we will only examine controls and SFN
+# Also, removed cancer cell samples
+tnames <- substr(x = colnames(dt1), 
+                 start = 3,
+                 stop = 3)
+
+gnames <- substr(x = colnames(dt1), 
+                 start = 5,
+                 stop = 7)
+
+dt1 <- dt1[, gnames %in% c("id",
+                           "th",
+                           "CON",
+                           "UVB",
+                           "SFN" ) &
+             tnames != "t",
+           with = FALSE]
+# 18 samples left
+
+# Remove genes with zero counts in > 80% (> 14 out of 18) of samples
+tmp <- dt1[, -c(1:2)] == 0
+tmp <- rowSums(tmp) > 14
+sum(tmp)
+
+dt1 <- droplevels(dt1[!tmp, ])
+nrow(dt1)
+# 17,273 out of 24,421 genes left
+
+DT::datatable(head(dt1, 10),
+              rownames = FALSE,
+              options = list(pageLength = 10),
+              caption = "Table 1: first 10 rows of the count table")
 ```
 
-### Taxonomy Ranks:
-#### **K**ing **P**hillip **C**an n**O**t **F**ind **G**reen **S**ocks
-* Kingdom                
-* Phylum                    
-* Class                   
-* Order                   
-* Family     
-* Genus     
-* Species  
-
-### Richness
-```{r Richness, warning=FALSE,echo=FALSE,message=FALSE}
-# Part I: keep controls and PEITCs at weeks 5 and 9 only
-# w59 <- prune_samples(samples = sample_names(ps)[!(sample_names(ps) %in%
-#                                                     c("4A",
-#                                                       "4B",
-#                                                       "4C",
-#                                                       "Undetermined"))], 
-#                     x = ps)
-w59 <- prune_samples(samples = sample_names(ps)[sample_names(ps) != "Undetermined"], 
-                    x = ps)
-
-p1 <- plot_richness(w59,
-              x = "Diet_Week", 
-              measures = "Shannon",
-              color = "Week") +
-  geom_line(aes(group = ID),
-            color = "black") +
-  geom_point(shape = 21,
-             size = 3,
-             color = "black")
-ggplotly(p1)
+## Transcripts per kilobase million (TPM) normalization
+Next, we noramized the counts. To convert number of hits to  the relative abundane of genes in each sample, we used ***transcripts per kilobase million (TPM)*** normalization, which is as following for the j-th sample:       
+1. normilize for gene length: a[i, j] = 1,000*count[i, j]/gene[i, j] length(bp)     
+2. normalize for seq depth (i.e. total count): a(i, j)/sum(a[, j])     
+3. multiply by one million     
+A very good comparison of normalization techniques can be found at the following video:    
+[RPKM, FPKM and TPM, clearly explained](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)
+     
+After the normalization, each sample's total is 1M:
+     
+```{r tpm, warning = FALSE, echo = FALSE, message = FALSE}
+# Normalize counts to TPM
+tmp <- 1000*dt1[, 3:ncol(dt1)]/dt1$Length
+tpm <- data.table(gene = dt1$gene,
+                  apply(tmp,
+                        2,
+                        function(a) {
+                          10^6*(a/sum(a))
+                        }))
+colSums(tpm[, -c(1:2)])
+DT::datatable(head(tpm, 10),
+              rownames = FALSE,
+              options = list(pageLength = 10,
+                             digits = 2),
+              caption = "Table 2: transcripts per kilobase million (TPM) normalized counts")
 ```
 
-### Total Counts per Sample
-```{r Tax, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=5}
-# OTU table
-otu <- t(w59@otu_table@.Data)
-otu <- data.table(seq16s = rownames(otu),
-                  otu)
-
-# Merge taxonomy and counts tables----
-dt1 <- merge(taxa,
-             otu,
-             by = "seq16s")
-dt1$seq16s <- NULL
-
-# Remove archea and eucaryota----
-dt1 <- droplevels(dt1[Kingdom == "Bacteria", ])
-t1 <- colSums(dt1[, 8:ncol(dt1)])
-t1 <- data.table(Sample = names(t1),
-                 Total = t1)
-t1 <- merge(unique(samples[, c("Sample",
-                              "Diet",
-                              "Week")]),
-            t1,
-            by = "Sample")
-
-p1 <- ggplot(t1,
-             aes(x = Sample,
-                 y = Total,
-                 fill = Diet,
-                 colour = Week)) +
-  geom_bar(stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45,
-                                   hjust = 1))
-ggplotly(p1)
-```
-
-## Relative Abundance in Samples at Different Taxonomic Ranks
-### 1. Class
-```{r Class, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=6}
-tax <- "Class"
-dt2 <- counts_ra_by_tax_rank(dt1, tax)
-
-# Plot samples
-p1 <- ggplot(dt2[order(RA,
-                         decreasing = TRUE), ],
-       aes(x = Sample,
-           y = RA,
-           fill = Tax,
-           group = Diet)) +
-  facet_wrap(~ Week + Diet,
-             scales = "free_x",
-             nrow = 1) +
-  geom_bar(stat = "identity") +
-    scale_fill_discrete(tax) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme(legend.position = "top",
-        legend.direction = "horizontal",
-        axis.text.x = element_text(angle = 45,
-                                   hjust = 1))
-ggplotly(p1)
-```
-
-```{r MeanClass, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=10}
-# Plot means
-ggplotly(ggplot_mean_ra(dt2, tax, facet_sex = TRUE))
-
-# Plot means, semi-log
-ggplotly(ggplot_mean_ra(dt2, tax, TRUE, TRUE))
-```
-
-### 2. Order
-```{r Order, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=6}
-tax <- "Order"
-dt2 <- counts_ra_by_tax_rank(dt1, tax)
-
-# Plot samples
-p1 <- ggplot(dt2[order(RA,
-                         decreasing = TRUE), ],
-       aes(x = Sample,
-           y = RA,
-           fill = Tax,
-           colour = Class,
-           group = Diet)) +
-  facet_wrap(~ Week + Diet,
-             scales = "free_x",
-             nrow = 1) +
-  geom_bar(stat = "identity") +
-    scale_fill_discrete(tax) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme(legend.position = "top",
-        legend.direction = "horizontal",
-        axis.text.x = element_text(angle = 45,
-                                   hjust = 1))
-ggplotly(p1)
-```
-
-```{r MeanOrder, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=12}
-# Plot means
-ggplotly(ggplot_mean_ra(dt2, tax, facet_sex = TRUE))
-
-# Plot means, semi-log
-ggplotly(ggplot_mean_ra(dt2, tax, TRUE, TRUE))
-```
-
-### 3. Family
-```{r Family, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=6}
-tax <- "Family"
-dt2 <- counts_ra_by_tax_rank(dt1, tax)
-
-# Plot samples
-p1 <- ggplot(dt2[order(RA,
-                         decreasing = TRUE), ],
-       aes(x = Sample,
-           y = RA,
-           fill = Tax,
-           colour = Class,
-           group = Diet)) +
-  facet_wrap(~ Week + Diet,
-             scales = "free_x",
-             nrow = 1) +
-  geom_bar(stat = "identity") +
-    scale_fill_discrete(tax) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme(legend.position = "top",
-        legend.direction = "horizontal",
-        axis.text.x = element_text(angle = 45,
-                                   hjust = 1))
-ggplotly(p1)
-
-
-```
-
-```{r MeanFamily, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=15}
-# Plot means
-ggplotly(ggplot_mean_ra(dt2, tax, facet_sex = TRUE))
-
-# Plot means, semi-log
-ggplotly(ggplot_mean_ra(dt2, tax, TRUE, TRUE))
-```
-
-### 4. Genus
-```{r Genus, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=6}
-tax <- "Genus"
-dt2 <- counts_ra_by_tax_rank(dt1, tax)
-
-# Plot samples
-p1 <- ggplot(dt2[order(RA,
-                         decreasing = TRUE), ],
-       aes(x = Sample,
-           y = RA,
-           fill = Tax,
-           colour = Class,
-           group = Diet)) +
-  facet_wrap(~ Week + Diet,
-             scales = "free_x",
-             nrow = 1) +
-  geom_bar(stat = "identity") +
-    scale_fill_discrete(tax) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme(legend.position = "top",
-        legend.direction = "horizontal",
-        axis.text.x = element_text(angle = 45,
-                                   hjust = 1))
-ggplotly(p1)
-```
-
-```{r MeanGenera, warning=FALSE,echo=FALSE,message=FALSE,fig.width=10,fig.height=20}
-# Plot means
-ggplotly(ggplot_mean_ra(dt2, tax, facet_sex = TRUE))
-
-# Plot means, semi-log
-ggplotly(ggplot_mean_ra(dt2, tax, TRUE, TRUE))
+# Session Information
+```{r info,eval=TRUE}
+sessionInfo()
 ```
