@@ -10,6 +10,7 @@ output:
 # Part 1: RNA
 ```{r header, warning = FALSE, echo = FALSE, message = FALSE}
 require(data.table)
+require(DT)
 require(DESeq2)
 require(readxl)
 require(BiocParallel)
@@ -65,7 +66,7 @@ dt1 <- droplevels(dt1[!tmp, ])
 nrow(dt1)
 # 17,273 out of 24,421 genes left
 
-DT::datatable(head(dt1, 10),
+datatable(head(dt1, 10),
               rownames = FALSE,
               options = list(pageLength = 10),
               caption = "Table 1: first 10 rows of the count table")
@@ -84,18 +85,21 @@ After the normalization, each sample's total is 1M:
 ```{r tpm, warning = FALSE, echo = FALSE, message = FALSE}
 # Normalize counts to TPM
 tmp <- 1000*dt1[, 3:ncol(dt1)]/dt1$Length
-tpm <- data.table(gene = dt1$gene,
+tpm <- data.table(Geneid = dt1$Geneid,
+                  Length = dt1$Length,
                   apply(tmp,
                         2,
                         function(a) {
                           10^6*(a/sum(a))
                         }))
 colSums(tpm[, -c(1:2)])
-DT::datatable(head(tpm, 10),
-              rownames = FALSE,
-              options = list(pageLength = 10,
-                             digits = 2),
-              caption = "Table 2: transcripts per kilobase million (TPM) normalized counts")
+
+formatRound(datatable(head(tpm, 10),
+                      rownames = FALSE,
+                      options = list(pageLength = 10),
+                      caption = "Table 2: transcripts per kilobase million (TPM) normalized counts"),
+            columns = 3:ncol(tpm),
+            digits = 2)
 ```
 
 # Session Information
