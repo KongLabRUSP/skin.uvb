@@ -1,1 +1,65 @@
-9 11
+tpm
+dmeta
+
+# Separate 5 most abundant genes
+tpm[Geneid %in% levels(Geneid)[(nrow(tpm) - 4):nrow(tpm)],]
+
+# Select Dmkn
+# Dermokine contributes to epithelial-mesenchymal transition
+# through increased activation of signal transducer and activator 
+# of transcription 3 in pancreatic cancer. (PMID: 28795470)
+
+i=17000
+gene <- levels(tpm$Geneid)[(nrow(tpm) - i + 1)]
+tmp <- tpm[Geneid == gene, ]
+tmp <- melt.data.table(data = tmp,
+                       id.vars = 1,
+                       measure.vars = 3:ncol(tmp),
+                       variable.name = "Sample",
+                       value.name = "TPM")
+tmp <- merge(dmeta,
+             tmp,
+             by = "Sample")
+tmp
+
+ggplot(tmp,
+       aes(x = Week,
+           y = TPM,
+           colour = Treatment,
+           shape = Replica)) +
+  facet_wrap(~ Treatment) +
+  geom_point(size = 5) +
+  ggtitle(gene)
+
+# Regroup: combine all controls
+# dmeta$grp <- 
+
+
+dtm <- as.matrix(dt1[, -c(1:2), with = FALSE])
+rownames(dtm) <- dt1$Geneid
+dtm
+
+dds <- DESeqDataSetFromMatrix(countData = dtm, 
+                              colData = dmeta,
+                              ~ trt + time)
+
+# If all samples contain zeros, geometric means cannot be
+# estimated. Change default 'type = "ratio"' to 'type = "poscounts"'.
+# Type '?DESeq2::estimateSizeFactors' for more details.
+dds <- estimateSizeFactors(dds,
+                           type = "poscounts")
+dds
+
+# # Set cores for parallel processing of DESeq----
+# snowparam <- SnowParam(workers = snowWorkers(), 
+#                        type = "SOCK")
+# register(snowparam, 
+#          default = TRUE)
+
+# Run DESeq----
+dds <- DESeq(dds,
+             fitType = "local",
+             parallel = TRUE)
+results(dds)
+resultsNames(dds)
+colData(dds)
