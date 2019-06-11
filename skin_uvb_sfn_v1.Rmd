@@ -29,8 +29,8 @@ require(scales)
 ```
 
 ## Load RNA samples
-Out of 30 samples, we selected 18 for this study. These are the normal tissue samples form the control, the UVA and the UVA+SFN treatment groups. normal tissue samples from the UVB_UA groups as well as tumor samples were excluded from this analysis.     
-First, we removed 7,148 genes with zero counts in > 80% (> 14 out of 18) of samples. 17,273 out of 24,421 genes left. 
+Out of 30 samples, we selected 17 for this study. These are the normal tissue samples form the control, the UVA and the UVA+SFN treatment groups. normal tissue samples from the UVB_UA groups as well as tumor samples were excluded from this analysis. Additionally, one of the control samples at Week 2 (baseline) was removed after outlier analysis.    
+7,219 genes with zero counts in > 80% (> 13 out of 18) of samples were removed. 17,202 out of 24,421 genes were left. 
          
 ```{r data_rna, warning = FALSE, echo = FALSE, message = FALSE}
 # Load data----
@@ -65,19 +65,23 @@ dt1 <- dt1[, gnames %in% c("id",
            with = FALSE]
 # 18 samples left
 
-# Remove genes with zero counts in > 80% (> 14 out of 18) of samples
+# Remove sample '02w_CON_1' as an outlier
+# See 'skin_uvb_sfn_exclude_con2w1_v1' for details
+dt1 <- dt1[, colnames(dt1) != "02w_CON_1", with = FALSE]
+
+# Remove genes with zero counts in > 80% (> 13 out of 17) of samples
 tmp <- dt1[, -c(1:2)] == 0
-tmp <- rowSums(tmp) > 14
+tmp <- rowSums(tmp) > 13
 sum(tmp)
 
 dt1 <- droplevels(dt1[!tmp, ])
 nrow(dt1)
-# 17,273 out of 24,421 genes left
+# 17,202 out of 24,421 genes left
 
 datatable(head(dt1, 10),
-              rownames = FALSE,
-              options = list(pageLength = 10),
-              caption = "Table 1: first 10 rows of the count table")
+          rownames = FALSE,
+          options = list(pageLength = 10),
+          caption = "Table 1: first 10 rows of the count table")
 ```
 
 ## Transcripts per kilobase million (TPM) normalization
@@ -214,40 +218,40 @@ ggplotly(p3)
 dmeta <- data.table(Sample = colnames(dt1)[-c(1:2)])
 
 dmeta$time <- substr(x = dmeta$Sample,
-                   start = 1,
-                   stop = 3)
+                     start = 1,
+                     stop = 3)
 dmeta$time <- factor(dmeta$time,
-                   levels = c("02w",
-                              "15w",
-                              "25w"))
+                     levels = c("02w",
+                                "15w",
+                                "25w"))
 dmeta$Week <- factor(dmeta$time,
-                   levels = c("02w",
-                              "15w",
-                              "25w"),
-                   labels = c("Week 2",
-                              "Week 15",
-                              "Week 25"))
+                     levels = c("02w",
+                                "15w",
+                                "25w"),
+                     labels = c("Week 2",
+                                "Week 15",
+                                "Week 25"))
 
 dmeta$trt <- substr(x = dmeta$Sample,
-                        start = 5,
-                        stop = 7)
+                    start = 5,
+                    stop = 7)
 dmeta$trt <- factor(dmeta$trt,
-                        levels = c("CON", 
-                                   "UVB",
-                                   "SFN"))
+                    levels = c("CON", 
+                               "UVB",
+                               "SFN"))
 dmeta$Treatment <- factor(dmeta$trt,
-                        levels = c("CON", 
-                                   "UVB",
-                                   "SFN"),
-                        labels = c("Negative Control",
-                                   "Positive Control (UVB)",
-                                   "Sulforaphane (SFN)"))
+                          levels = c("CON", 
+                                     "UVB",
+                                     "SFN"),
+                          labels = c("Negative Control",
+                                     "Positive Control (UVB)",
+                                     "Sulforaphane (SFN)"))
 
 dmeta$Replica <- substr(x = dmeta$Sample,
-                      start = 9,
-                      stop = 9)
+                        start = 9,
+                        stop = 9)
 dmeta$Replica <- factor(dmeta$Replica,
-                      levels = 0:1)
+                        levels = 0:1)
 
 datatable(dmeta,
           options = list(pageLength = nrow(dmeta)))
@@ -385,12 +389,202 @@ scatterplot3js(x = dt.scr$PC1,
                size = 0.1)
 ```
 
+# Differential expression analysis (DESeq2 pipeline)
+Sources:    
+1. [Analyzing RNA-seq data with DESeq2:Interactions](https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#interactions)     
+2. [Bioconductor Question: DESeq2 time series analysis](https://support.bioconductor.org/p/97430/)      
+We are testing a model with time*treatment interaction. The idea here is to find genes with significant interaction term. That would suggest that the gene expressiondifferences between the treatments depended on time. THere are several possible scenarios:    
+a. No difference between the negative control and the positive control groups at baseline, significant difference at the later time point. This will show the effect of the disease (UVB radiation, in this case).     
+b. Significant difference between the control groups at baseline, no difference at the later time point. Same as (a) above.     
+c. Differences between the positive control and the SFN-treated groups. Here, we are interested in the reversal of UVB effect. Again, the interaction term will need to be significant for the reasons described above.      
+    
+First, we will compare weeks 2 and 15. Previous analyses showed that majority of cahnges happend at by this time. far less genes were differentially expressed between weeks 15 and 25.
+```{r deseq2_week2_week15}
+# Baseline vs. Week 15 only
+dmeta.15 <- droplevels(dmeta[Week != "Week 25", ])
 
-# Differential expressions
-```{r deseq2}
+# Relevel: make all comparisons with the positive control (UVB)
+dmeta.15$trt <- factor(dmeta.15$trt,
+                       levels = c("UVB",
+                                  "CON",
+                                  "SFN"))
 
+dtm.15 <- as.matrix(dt1[, dmeta.15$Sample,
+                        with = FALSE])
+rownames(dtm.15) <- dt1$Geneid
+
+dds <- DESeqDataSetFromMatrix(countData = dtm.15, 
+                              colData = dmeta.15,
+                              ~ time + trt + time:trt)
+# If all samples contain zeros, geometric means cannot be
+# estimated. Change default 'type = "ratio"' to 'type = "poscounts"'.
+# Type '?DESeq2::estimateSizeFactors' for more details.
+dds <- estimateSizeFactors(object = dds,
+                           type = "poscounts")
+
+# Run DESeq----
+dds <- DESeq(object = dds,
+             # test = "LRT",
+             # reduced = ~ time + trt,
+             fitType = "local",
+             sfType = "ratio",
+             parallel = FALSE)
+
+# NOTE (from DESeq help file, section Value):
+# A DESeqDataSet object with results stored as metadata columns. 
+# These results should accessed by calling the results function. 
+# By default this will return the log2 fold changes and p-values
+# for the last variable in the design formula. 
+# See results for how to access results for other variables.
+# In this case, the last term is the interaction term trt:time
+
+resultsNames(dds)
+# model.matrix(~ time + trt + time:trt, dmeta.15)
 ```
 
+# Results: interactions terms
+Tests if the effect of NOT treating with UVB vs. treating with UVB is different at Week 15 compared to Week 2:    
+```{r deseq2_week2_week15_results_int_con_uvb}
+res_int_con_uvb_week <- results(dds, 
+                                name = "time15w.trtCON",
+                                alpha = 0.1)
+res_int_con_uvb_week <- res_int_con_uvb_week[order(res_int_con_uvb_week$padj,
+                                                   decreasing = FALSE),]
+print(res_int_con_uvb_week)
+summary(res_int_con_uvb_week)
+
+# How many adjusted p-values were less than 0.05?
+sum(res_int_con_uvb_week$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+print(plotMA(res_int_con_uvb_week))
+```
+
+Tests if the effect of treating with UVB+SFN vs. treating with UVB is different at Week 15 compared to Week 2:    
+```{r deseq2_week2_week15_results_int_sfn_uvb}
+res_int_sfn_uvb_week <- results(dds, 
+                                name = "time15w.trtSFN",
+                                alpha = 0.1)
+res_int_sfn_uvb_week <- res_int_sfn_uvb_week[order(res_int_sfn_uvb_week$padj,
+                                                   decreasing = FALSE),]
+print(res_int_sfn_uvb_week)
+summary(res_int_sfn_uvb_week)
+
+# How many adjusted p-values were less than 0.05?
+sum(res_int_sfn_uvb_week$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+print(plotMA(res_int_sfn_uvb_week))
+
+# NOTE: same as 
+# res <- results(dds, 
+#                   alpha = 0.05)
+# res <- res[order(res$padj, decreasing = FALSE),]
+# res
+```
+
+**NOTE**: By default, the **results(dds)*** prints the results for the last level of the last term, i.e. here it was for for the interaction term SFN vs. UVB at Week 15 vs. Week 2.
+       
+# Genes with both interactions being significant
+```{r sign_int}
+lgene.con <- unique(res_int_con_uvb_week@rownames[res_int_con_uvb_week$padj < 0.1])
+lgene.sfn <- unique(res_int_sfn_uvb_week@rownames[res_int_sfn_uvb_week$padj < 0.1])
+lgene <- lgene.con[lgene.con %in% lgene.sfn]
+lgene <- lgene[!is.na(lgene)]
+lgene
+```
+
+       
+Plot of DESeq-normalizedcounts of genes with smallest adjusted p-value for the interaction term:     
+```{r deseq2_week2_week15_top9_deseqnorm, fig.height = 6, fig.width = 8}
+# Get the DESeq-normalize counts
+dp1 <- list()
+for (i in 1:length(lgene)) {
+  out <- plotCounts(dds, 
+                    gene = lgene[[i]],
+                    intgroup = c("trt",
+                                 "time"),
+                    returnData = TRUE)
+  dp1[[i]] <- data.table(Geneid = lgene[[i]],
+                         Sample = rownames(out),
+                         out)
+}
+dp1 <- rbindlist(dp1)
+dp1$trt <- factor(dp1$trt,
+                  levels = c("CON",
+                             "UVB",
+                             "SFN"))
+dp1$time <- factor(dp1$time,
+                   levels = c("02w",
+                              "15w"),
+                   labels = c("Week 2",
+                              "Week 15"))
+dp1$Geneid <- factor(dp1$Geneid,
+                     levels = lgene)
+dp1[, mu := mean(count,
+                 na.rm = TRUE),
+    by = c("Geneid",
+           "trt",
+           "time")]
+dmu <- unique(dp1[, -c("Sample",
+                       "count")])
+
+p1 <- ggplot(dp1,
+             aes(x = time,
+                 y = count,
+                 group = trt,
+                 fill = trt)) +
+  facet_wrap(~ Geneid,
+             scale = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black") +
+  geom_line(data = dmu,
+            aes(x = time,
+                y = mu,
+                group = trt,
+                colour = trt),
+            position = position_dodge(0.5),
+            alpha = 0.5,
+            size = 2) +
+  scale_x_discrete("") +
+  scale_y_continuous("DESeq-Normalized Counts") +
+  scale_fill_discrete("Treatment")
+print(p1)
+```
+      
+Compare to the plot of TPM-normalizedcounts of genes with smallest adjusted p-value for the interaction term:     
+```{r deseq2_week2_week15_tpmnorm, fig.height = 6, fig.width = 8}
+# Examine TPM values for the same genes
+tmp <- tpm[Geneid %in% lgene, ]
+tmp$Geneid <- factor(tmp$Geneid,
+                     levels = lgene)
+tmp <- melt.data.table(data = tmp,
+                       id.vars = 1,
+                       measure.vars = 3:ncol(tmp),
+                       variable.name = "Sample",
+                       value.name = "TPM")
+tmp <- merge(dmeta,
+             tmp,
+             by = "Sample")
+
+p1 <- ggplot(tmp,
+             aes(x = Week,
+                 y = TPM,
+                 fill = Treatment,
+                 group = Treatment)) +
+  facet_wrap(~ Geneid,
+             scales = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black")+
+  scale_x_discrete("")
+plot(p1)
+```
 
 # Session Information
 ```{r info,eval=TRUE}
