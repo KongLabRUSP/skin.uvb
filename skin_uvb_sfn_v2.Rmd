@@ -1,0 +1,870 @@
+---
+title: "Skin UVB SKH1 mouse model treated with SFN "
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+    code_folding: hide
+---
+
+# Part 1: RNA
+```{r header, echo = FALSE, message = FALSE, error = FALSE, warning  =FALSE}
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# BiocManager::install("DESeq2")
+
+require(knitr)
+require(data.table)
+require(DT)
+require(DESeq2)
+require(readxl)
+require(BiocParallel)
+require(ggplot2)
+require(plotly)
+require(threejs)
+require(scales)
+require(gridExtra)
+require(ggpubr)
+
+# NOTE: on DESeq2 Output: 'baseMean' is the average of the normalized count values, 
+# divided by the size factors, taken over all samples in the DESeqDataSet
+```
+
+## Load RNA samples
+Out of 30 samples, we selected 17 for this study. These are the normal tissue samples form the control, the UVA and the UVA+SFN treatment groups. normal tissue samples from the UVB_UA groups as well as tumor samples were excluded from this analysis. Additionally, one of the control samples at Week 2 (baseline) was removed after outlier analysis.    
+7,219 genes with zero counts in > 80% (> 13 out of 18) of samples were removed. 17,202 out of 24,421 genes were left. 
+         
+```{r data_rna, warning = FALSE, echo = FALSE, message = FALSE}
+# Load data----
+dt0 <- fread("data/renyi_dedup_rnaseq_data/featurescounts_uvb-skin_dedup_renyi_2-9-2018.csv",
+             skip = 1)
+
+# Remove unused columns----
+dt1 <- dt0[, c(1, 6:ncol(dt0)), with = FALSE]
+
+cnames <- colnames(dt1)[-c(1:2)]
+cnames <- gsub(x = cnames,
+               pattern = ".dedup.bam",
+               replacement = "")
+colnames(dt1)[-c(1:2)] <- cnames
+
+# ATTENTION! In this analysis, we will only examine controls and SFN
+# Also, removed cancer cell samples
+tnames <- substr(x = colnames(dt1), 
+                 start = 3,
+                 stop = 3)
+
+gnames <- substr(x = colnames(dt1), 
+                 start = 5,
+                 stop = 7)
+
+dt1 <- dt1[, gnames %in% c("id",
+                           "th",
+                           "CON",
+                           "UVB",
+                           "SFN" ) &
+             tnames != "t",
+           with = FALSE]
+# 18 samples left
+
+# Remove sample '02w_CON_1' as an outlier
+# See 'skin_uvb_sfn_exclude_con2w1_v1' for details
+dt1 <- dt1[, colnames(dt1) != "02w_CON_1", with = FALSE]
+
+# Remove genes with zero counts in > 80% (> 13 out of 17) of samples
+tmp <- dt1[, -c(1:2)] == 0
+tmp <- rowSums(tmp) > 13
+sum(tmp)
+
+dt1 <- droplevels(dt1[!tmp, ])
+nrow(dt1)
+# 17,202 out of 24,421 genes left
+
+datatable(head(dt1, 10),
+          rownames = FALSE,
+          options = list(pageLength = 10),
+          caption = "Table 1: first 10 rows of the count table")
+```
+
+## Transcripts per kilobase million (TPM) normalization
+Next, we noramized the counts. To convert number of hits to  the relative abundane of genes in each sample, we used ***transcripts per kilobase million (TPM)*** normalization, which is as following for the j-th sample:       
+1. normilize for gene length: a[i, j] = 1,000*count[i, j]/gene[i, j] length(bp)     
+2. normalize for seq depth (i.e. total count): a(i, j)/sum(a[, j])     
+3. multiply by one million     
+A very good comparison of normalization techniques can be found at the following video:    
+[RPKM, FPKM and TPM, clearly explained](https://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/)
+     
+After the normalization, each sample's total is 1M:
+     
+```{r tpm, warning = FALSE, echo = FALSE, message = FALSE}
+# Normalize counts to TPM
+tmp <- 1000*dt1[, 3:ncol(dt1)]/dt1$Length
+tpm <- data.table(Geneid = dt1$Geneid,
+                  Length = dt1$Length,
+                  apply(tmp,
+                        2,
+                        function(a) {
+                          10^6*(a/sum(a))
+                        }))
+colSums(tpm[, -c(1:2)])
+
+formatRound(datatable(head(tpm, 10),
+                      rownames = FALSE,
+                      options = list(pageLength = 10),
+                      caption = "Table 2: transcripts per kilobase million (TPM) normalized counts"),
+            columns = 3:ncol(tpm),
+            digits = 2)
+
+# Total TPM
+total <- rowSums(tpm[, 3:ncol(tpm)])
+
+# Sort genes by relative abundancy
+tpm$Geneid <- factor(tpm$Geneid ,
+                     levels = tpm$Geneid[order(total,
+                                               decreasing = FALSE)])
+```
+
+# Top 100 most abundant RNA molecules
+```{r most_abundant}
+# Separate top 100 abundant genes
+tmp <- droplevels(tpm[Geneid %in% levels(tpm$Geneid)[(nrow(tpm) - 99):nrow(tpm)]])
+
+tmp <- melt.data.table(data = tmp,
+                       id.vars = 1:2,
+                       measure.vars = 3:ncol(tmp),
+                       variable.name = "Sample",
+                       value.name = "TPM")
+
+tmp$Week <- substr(x = tmp$Sample,
+                   start = 1,
+                   stop = 3)
+tmp$Week <- factor(tmp$Week,
+                   levels = unique(tmp$Week))
+
+
+tmp$Treatment <- substr(x = tmp$Sample,
+                        start = 5,
+                        stop = 7)
+tmp$Treatment <- factor(tmp$Treatment,
+                        levels = c("CON", 
+                                   "UVB",
+                                   "SFN"))
+
+tmp$Replica <- substr(x = tmp$Sample,
+                      start = 9,
+                      stop = 9)
+tmp$Replica <- factor(tmp$Replica,
+                      levels = 0:1)
+
+# Plot top 100 abundant genes
+p2 <- ggplot(tmp,
+             aes(x = TPM,
+                 y = Geneid,
+                 fill = Treatment,
+                 shape = Week)) +
+  # facet_wrap(~ Sex, nrow = 1) +
+  geom_point(size = 3,
+             alpha = 0.5) +
+  geom_vline(xintercept = 1,
+             linetype = "dashed")
+ggplotly(p2)
+```
+
+# Bottom 100 least abundant RNA molecules
+```{r least_abundant}
+tmp <- droplevels(tpm[Geneid %in% levels(tpm$Geneid)[1:100]])
+
+tmp <- melt.data.table(data = tmp,
+                       id.vars = 1:2,
+                       measure.vars = 3:ncol(tmp),
+                       variable.name = "Sample",
+                       value.name = "TPM")
+
+tmp$Week <- substr(x = tmp$Sample,
+                   start = 1,
+                   stop = 3)
+tmp$Week <- factor(tmp$Week,
+                   levels = unique(tmp$Week))
+
+
+tmp$Treatment <- substr(x = tmp$Sample,
+                        start = 5,
+                        stop = 7)
+tmp$Treatment <- factor(tmp$Treatment,
+                        levels = c("CON", 
+                                   "UVB",
+                                   "SFN"))
+
+tmp$Replica <- substr(x = tmp$Sample,
+                      start = 9,
+                      stop = 9)
+tmp$Replica <- factor(tmp$Replica,
+                      levels = 0:1)
+
+# Plot top 100 abundant genes
+p3 <- ggplot(tmp,
+             aes(x = TPM,
+                 y = Geneid,
+                 fill = Treatment,
+                 shape = Week)) +
+  # facet_wrap(~ Sex, nrow = 1) +
+  geom_point(size = 3,
+             alpha = 0.5) +
+  geom_vline(xintercept = 1,
+             linetype = "dashed")
+ggplotly(p3)
+```
+
+# Meta data
+```{r meta}
+dmeta <- data.table(Sample = colnames(dt1)[-c(1:2)])
+
+dmeta$time <- substr(x = dmeta$Sample,
+                     start = 1,
+                     stop = 3)
+dmeta$time <- factor(dmeta$time,
+                     levels = c("02w",
+                                "15w",
+                                "25w"))
+dmeta$Week <- factor(dmeta$time,
+                     levels = c("02w",
+                                "15w",
+                                "25w"),
+                     labels = c("Week 2",
+                                "Week 15",
+                                "Week 25"))
+
+dmeta$trt <- substr(x = dmeta$Sample,
+                    start = 5,
+                    stop = 7)
+dmeta$trt <- factor(dmeta$trt,
+                    levels = c("CON", 
+                               "UVB",
+                               "SFN"))
+dmeta$Treatment <- factor(dmeta$trt,
+                          levels = c("CON", 
+                                     "UVB",
+                                     "SFN"),
+                          labels = c("Negative Control",
+                                     "Positive Control (UVB)",
+                                     "Sulforaphane (SFN)"))
+
+dmeta$Replica <- substr(x = dmeta$Sample,
+                        start = 9,
+                        stop = 9)
+dmeta$Replica <- factor(dmeta$Replica,
+                        levels = 0:1)
+
+datatable(dmeta,
+          options = list(pageLength = nrow(dmeta)))
+```
+
+# PCA of TPM
+NOTE: the distributions are skewed. To make them symmetric, log transformation is often applied. However, there is an issue of zeros. In this instance, we added a small values ***lambda[i]*** equal to 1/10 of the smallest non-zero value of *i*-th gene. 
+```{r pca}
+dm.tpm <- as.matrix(tpm[, -c(1:2), with = FALSE])
+rownames(dm.tpm) <- tpm$Geneid
+
+# # Remove 02w_CON_1 sample and redo PCA
+# dm.tpm <- dm.tpm[, colnames(dm.tpm) != "02w_CON_1"]
+# dmeta <- dmeta[dmeta$Sample != "02w_CON_1", ]
+
+# Add lambdas to all values, then take a log
+dm.ltpm <- t(apply(X = dm.tpm,
+                      MARGIN = 1,
+                      FUN = function(a) {
+                        lambda <- min(a[a > 0])/10
+                        log(a + lambda)
+                      }))
+
+# PCA----
+m1 <- prcomp(t(dm.ltpm),
+             center = TRUE,
+             scale. = TRUE)
+
+s1 <- summary(m1)
+s1
+```
+
+# Pareto chart of variance explained by principal components
+```{r pca_var_plot}
+imp <- data.table(PC = colnames(s1$importance),
+                  Variance = 100*s1$importance[2, ],
+                  Cumulative = 100*s1$importance[3, ])
+imp$PC <- factor(imp$PC,
+                 levels = imp$PC)
+p1 <- ggplot(imp,
+             aes(x = PC,
+                 y = Variance)) +
+  geom_bar(stat = "identity",
+           fill = "grey",
+           color = "black") +
+  geom_line(aes(y = rescale(Cumulative,
+                            to = c(min(Cumulative)*30/100,
+                                   30)),
+                group = rep(1, nrow(imp)))) +
+  geom_point(aes(y = rescale(Cumulative,
+                             to = c(min(Cumulative)*30/100,
+                                    30)))) +
+  scale_y_continuous("% Variance Explained",
+                     breaks = seq(0, 30, by = 5),
+                     labels = paste(seq(0, 30, by = 5),
+                                    "%",
+                                    sep = ""),
+                     sec.axis = sec_axis(trans = ~.,
+                                         name = "% Cumulative Variance",
+                                         breaks = seq(0, 30, length.out = 5),
+                                         labels = paste(seq(0, 100, length.out = 5),
+                                                        "%",
+                                                        sep = ""))) +
+  scale_x_discrete("") +
+  theme(axis.text.x = element_text(angle = 90,
+                                   hjust = 1))
+print(p1)
+
+# Save for publication
+tiff(filename = "tmp/pca_pareto.tiff",
+     height = 6,
+     width = 8,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+print(p1)
+graphics.off()
+```
+
+# First 3 principal components, pairwise
+```{r pca_plots}
+# Biplot while keep only the most important variables (Javier)----
+# Select PC-s to pliot (PC1 & PC2)
+choices <- c(1:3)
+
+# Scores, i.e. points (df.u)
+dt.scr <- data.table(m1$x[, choices])
+# Add grouping variables
+dt.scr$trt <- dmeta$trt
+dt.scr$time <- dmeta$time
+dt.scr$sample <- dmeta$Sample
+
+# Loadings, i.e. arrows (df.v)
+dt.rot <- as.data.frame(m1$rotation[, choices])
+dt.rot$feat <- rownames(dt.rot)
+dt.rot <- data.table(dt.rot)
+
+# Axis labels
+u.axis.labs <- paste(colnames(dt.rot)[choices], 
+                     sprintf('(%0.1f%% explained var.)', 
+                             100*m1$sdev[choices]^2/sum(m1$sdev^2)))
+
+p1 <- ggplot(data = dt.scr,
+             aes(x = PC1,
+                 y = PC2,
+                 color = trt,
+                 shape = time)) +
+  geom_point(size = 4,
+             alpha = 0.5) +
+  scale_x_continuous(u.axis.labs[1]) +
+  scale_y_continuous(u.axis.labs[2]) +
+  theme(legend.position = "none")
+ggplotly(p1)
+
+p2 <- ggplot(data = dt.scr,
+             aes(x = PC1,
+                 y = PC3,
+                 color = trt,
+                 shape = time)) +
+  geom_point(size = 4,
+             alpha = 0.5) +
+  scale_x_continuous(u.axis.labs[1]) +
+  scale_y_continuous(u.axis.labs[3]) +
+  theme(legend.position = "none")
+ggplotly(p2)
+
+p3 <- ggplot(data = dt.scr,
+             aes(x = PC2,
+                 y = PC3,
+                 color = trt,
+                 shape = time)) +
+  geom_point(size = 4,
+             alpha = 0.5) +
+  scale_x_continuous(u.axis.labs[2]) +
+  scale_y_continuous(u.axis.labs[3]) +
+  theme(legend.position = "none")
+ggplotly(p3)
+
+# Legend only
+tmp <- ggplot(data = dt.scr,
+             aes(x = PC1,
+                 y = PC2,
+                 color = trt,
+                 shape = time)) +
+  geom_point() +
+  scale_color_discrete("Treatment") +
+  scale_shape_discrete("Week")
+p4 <- as_ggplot(get_legend(tmp))
+
+# Save for publication
+tiff(filename = "tmp/pca.tiff",
+     height = 7,
+     width = 9,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+grid.arrange(p1, p2, p3, p4, 
+             nrow = 2)
+graphics.off()
+```
+
+# First 3 principal components, 3D
+```{r pca_3d, fig.height = 10, fig.width = 10}
+scatterplot3js(x = dt.scr$PC1, 
+               y = dt.scr$PC2, 
+               z = dt.scr$PC3, 
+               color = as.numeric(dt.scr$trt),
+               renderer = "auto",
+               pch = dt.scr$sample,
+               size = 0.1)
+```
+
+# Differential expression analysis (DESeq2 pipeline)
+Sources:    
+1. [Analyzing RNA-seq data with DESeq2:Interactions](https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#interactions)     
+2. [Bioconductor Question: DESeq2 time series analysis](https://support.bioconductor.org/p/97430/)      
+We are testing a model with time*treatment interaction. The idea here is to find genes with significant interaction term. That would suggest that the gene expressiondifferences between the treatments depended on time. THere are several possible scenarios:    
+a. No difference between the negative control and the positive control groups at baseline, significant difference at the later time point. This will show the effect of the disease (UVB radiation, in this case).     
+b. Significant difference between the control groups at baseline, no difference at the later time point. Same as (a) above.     
+c. Differences between the positive control and the SFN-treated groups. Here, we are interested in the reversal of UVB effect. Again, the interaction term will need to be significant for the reasons described above.      
+
+```{r deseq2}
+# Relevel: make all comparisons with the positive control (UVB)
+dmeta$trt <- factor(dmeta$trt,
+                    levels = c("UVB",
+                               "CON",
+                               "SFN"))
+
+dtm<- as.matrix(dt1[, dmeta$Sample,
+                    with = FALSE])
+rownames(dtm) <- dt1$Geneid
+
+dds <- DESeqDataSetFromMatrix(countData = dtm, 
+                              colData = dmeta,
+                              ~ time + trt + time:trt)
+# If all samples contain zeros, geometric means cannot be
+# estimated. Change default 'type = "ratio"' to 'type = "poscounts"'.
+# Type '?DESeq2::estimateSizeFactors' for more details.
+dds <- estimateSizeFactors(object = dds,
+                           type = "poscounts")
+
+# Run DESeq----
+dds <- DESeq(object = dds,
+             # test = "LRT",
+             # reduced = ~ time + trt,
+             fitType = "local",
+             sfType = "ratio",
+             parallel = FALSE)
+
+# NOTE (from DESeq help file, section Value):
+# A DESeqDataSet object with results stored as metadata columns. 
+# These results should accessed by calling the results function. 
+# By default this will return the log2 fold changes and p-values
+# for the last variable in the design formula. 
+# See results for how to access results for other variables.
+# In this case, the last term is the interaction term trt:time
+
+# NOTE: 
+# Likelihood ratio test (LRT) (chi-squared test) for GLM will only return 
+# the results for the difference between the full and the reduced model
+
+resultsNames(dds)
+
+# Model matrix
+mm1 <- model.matrix(~ time + trt + time:trt, dmeta)
+mm1
+```
+
+# Results
+## Effect of UVB at Week 2
+```{r deseq2_results_week2_con_uvb}
+res_con_uvb_week2 <- results(dds,
+                             contrast = c(0,0,0,1,0,0,0,0,0),
+                             alpha = 0.1)
+res_con_uvb_week2 <- res_con_uvb_week2[order(res_con_uvb_week2$padj,
+                                                   decreasing = FALSE),]
+summary(res_con_uvb_week2)
+
+# How many adjusted p-values were less than 0.05?
+sum(res_con_uvb_week2$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+plotMA(res_con_uvb_week2,
+             main = "Control vs. UVB at Week 2",
+             alpha = 0.8)
+
+# Save for publication
+tiff(filename = "tmp/ma_w2_con_uvb.tiff",
+     height = 6,
+     width = 7,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+plotMA(res_con_uvb_week2,
+             main = "Control vs. UVB at Week 2",
+             alpha = 0.8)
+graphics.off()
+```
+
+## Protective effect of SFN at Week 2
+```{r deseq2_results_week2_sfn_uvb}
+res_sfn_uvb_week2 <- results(dds,
+                             contrast = c(0,0,0,0,1,0,0,0,0),
+                             alpha = 0.1)
+res_sfn_uvb_week2 <- res_sfn_uvb_week2[order(res_sfn_uvb_week2$padj,
+                                                   decreasing = FALSE),]
+summary(res_sfn_uvb_week2)
+
+# How many adjusted p-values were less than 0.05?
+sum(res_sfn_uvb_week2$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+print(plotMA(res_sfn_uvb_week2,
+             main = "UVB+SFN vs UVB at Week 2",
+             alpha = 0.8))
+
+# Save for publication
+tiff(filename = "tmp/ma_w2_sfn_uvb.tiff",
+     height = 6,
+     width = 7,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+print(plotMA(res_sfn_uvb_week2,
+             main = "UVB+SFN vs UVB at Week 2",
+             alpha = 0.8))
+graphics.off()
+```
+
+## Genes that were significantly differentiated at both timepoints
+```{r sign_w2}
+lgene.w2.con <- unique(res_con_uvb_week2@rownames[res_con_uvb_week2$padj < 0.1])
+lgene.w2.sfn <- unique(res_sfn_uvb_week2@rownames[res_sfn_uvb_week2$padj < 0.1])
+lgene.w2 <- lgene.w2.con[lgene.w2.con %in% lgene.w2.sfn]
+lgene.w2 <- lgene.w2 [!is.na(lgene.w2 )]
+lgene.w2
+```
+
+Plot of DESeq-normalizedcounts of genes significant in both comparisons at Week 2:   
+
+```{r deseq2_w2sign_deseqnorm}
+# Get the DESeq-normalize counts
+dp1 <- list()
+for (i in 1:length(lgene.w2)) {
+  out <- plotCounts(dds, 
+                    gene = lgene.w2[[i]],
+                    intgroup = c("trt",
+                                 "time"),
+                    returnData = TRUE)
+  dp1[[i]] <- data.table(Geneid = lgene.w2[[i]],
+                         Sample = rownames(out),
+                         out)
+}
+dp1 <- rbindlist(dp1)
+dp1$trt <- factor(dp1$trt,
+                  levels = c("CON",
+                             "UVB",
+                             "SFN"))
+dp1$time <- factor(dp1$time,
+                   levels = c("02w",
+                              "15w",
+                              "25w"),
+                   labels = c("Week 2",
+                              "Week 15",
+                              "Week 25"))
+dp1$Geneid <- factor(dp1$Geneid,
+                     levels = lgene.w2)
+dp1[, mu := mean(count,
+                 na.rm = TRUE),
+    by = c("Geneid",
+           "trt",
+           "time")]
+dmu <- unique(dp1[, -c("Sample",
+                       "count")])
+head(dmu)
+```
+
+```{r deseq2_w2sign_deseqnorm_w2plot, echo = FALSE, message = FALSE, fig.height = 6, fig.width = 8}
+dmu.w2 <- dmu[time == "Week 2", ]
+dmu.w2[, dn.up := (mu[trt == "UVB"] < mu[trt == "CON"]) &
+               (mu[trt == "UVB"] < mu[trt == "SFN"]),
+       by = Geneid]
+dmu.w2[, up.dn := (mu[trt == "UVB"] > mu[trt == "CON"]) &
+               (mu[trt == "UVB"] > mu[trt == "SFN"]),
+       by = Geneid]
+p1 <- ggplot(dmu.w2[up.dn == TRUE, ],
+             aes(x = trt,
+                 y = mu,
+                 group = Geneid,
+                 fill = trt)) +
+        facet_wrap(~ Geneid,
+                   scale = "free_y") +
+        geom_line(position = position_dodge(0.5)) +
+        geom_point(position = position_dodge(0.5),
+                   shape = 21,
+                   size = 3,
+                   color = "black") +
+        scale_x_discrete("") +
+        scale_y_continuous("Differentially Expressed Genes at Week 2") +
+        scale_fill_discrete("Treatment") +
+        ggtitle("Genes Upregulated by UVB")
+theme(axis.text.x = element_text(angle = 45,
+                                 hjust = 1))
+p1
+# tiff(filename = "tmp/w2_up_dn.tiff",
+#      height = 6,
+#      width = 8,
+#      units = 'in',
+#      res = 300,
+#      compression = "lzw+p")
+# print(p1)
+# graphics.off()
+
+p2 <- ggplot(dmu.w2[dn.up == TRUE, ],
+             aes(x = trt,
+                 y = mu,
+                 group = Geneid,
+                 fill = trt)) +
+        facet_wrap(~ Geneid,
+                   scale = "free_y") +
+        geom_line(position = position_dodge(0.5)) +
+        geom_point(position = position_dodge(0.5),
+                   shape = 21,
+                   size = 3,
+                   color = "black") +
+        scale_x_discrete("") +
+        scale_y_continuous("Differentially Expressed Genes at Week 2") +
+        scale_fill_discrete("Treatment") +
+        ggtitle("Genes Downregulated by UVB")
+theme(axis.text.x = element_text(angle = 45,
+                                 hjust = 1))
+p2
+# tiff(filename = "tmp/w2_dn_up.tiff",
+#      height = 6,
+#      width = 8,
+#      units = 'in',
+#      res = 300,
+#      compression = "lzw+p")
+# print(p2)
+# graphics.off()
+```
+
+## Did these trends persisted?
+```{r deseq2_w2sign_deseqnorm_plot_all_up_dn, fig.height = 10, fig.width = 12}
+dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$up.dn]), ]
+dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$up.dn]), ]
+p1 <- ggplot(dp1.tmp,
+             aes(x = time,
+                 y = count,
+                 group = trt,
+                 fill = trt)) +
+  facet_wrap(~ Geneid,
+             scale = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black") +
+  geom_line(data = dmu.tmp,
+            aes(x = time,
+                y = mu,
+                group = trt,
+                colour = trt),
+            position = position_dodge(0.5),
+            alpha = 0.5,
+            size = 2) +
+  scale_x_discrete("") +
+  scale_y_continuous("DESeq-Normalized Counts") +
+  scale_fill_discrete("Treatment")
+print(p1)
+```
+
+```{r deseq2_w2sign_deseqnorm_plot_all_dn_up, fig.height = 10, fig.width = 12}
+dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$dn.up]), ]
+dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$dn.up]), ]
+p1 <- ggplot(dp1.tmp,
+             aes(x = time,
+                 y = count,
+                 group = trt,
+                 fill = trt)) +
+  facet_wrap(~ Geneid,
+             scale = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black") +
+  geom_line(data = dmu.tmp,
+            aes(x = time,
+                y = mu,
+                group = trt,
+                colour = trt),
+            position = position_dodge(0.5),
+            alpha = 0.5,
+            size = 2) +
+  scale_x_discrete("") +
+  scale_y_continuous("DESeq-Normalized Counts") +
+  scale_fill_discrete("Treatment")
+print(p1)
+```
+
+In many of these genes, UVB+SFN moved closer to UVB over time.
+
+## Interactions terms
+Tests if the effect of NOT treating with UVB vs. treating with UVB is different at Week 15 compared to Week 2:    
+```{r deseq2_week2_week15_results_int_con_uvb}
+res_int_con_uvb_week <- results(dds, 
+                                name = "time15w.trtCON",
+                                alpha = 0.1)
+res_int_con_uvb_week <- res_int_con_uvb_week[order(res_int_con_uvb_week$padj,
+                                                   decreasing = FALSE),]
+print(res_int_con_uvb_week)
+summary(res_int_con_uvb_week)
+
+# How many adjusted p-values were less than 0.05?
+sum(res_int_con_uvb_week$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+print(plotMA(res_int_con_uvb_week,
+             main = "(Control vs. UVB) x TIme Interaction",
+             alpha = 0.9))
+
+```
+
+Tests if the effect of treating with UVB+SFN vs. treating with UVB is different at Week 15 compared to Week 2:    
+```{r deseq2_week2_week15_results_int_sfn_uvb}
+res_int_sfn_uvb_week <- results(dds, 
+                                name = "time15w.trtSFN",
+                                alpha = 0.1)
+res_int_sfn_uvb_week <- res_int_sfn_uvb_week[order(res_int_sfn_uvb_week$padj,
+                                                   decreasing = FALSE),]
+print(res_int_sfn_uvb_week)
+summary(res_int_sfn_uvb_week)
+
+# How many adjusted p-values were less than 0.05?
+sum(res_int_sfn_uvb_week$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+print(plotMA(res_int_sfn_uvb_week))
+
+# NOTE: same as 
+# res <- results(dds, 
+#                   alpha = 0.05)
+# res <- res[order(res$padj, decreasing = FALSE),]
+# res
+```
+
+**NOTE**: By default, the **results(dds)*** prints the results for the last level of the last term, i.e. here it was for for the interaction term SFN vs. UVB at Week 15 vs. Week 2.
+       
+# Genes with both interactions being significant
+```{r sign_int}
+lgene.con <- unique(res_int_con_uvb_week@rownames[res_int_con_uvb_week$padj < 0.1])
+lgene.sfn <- unique(res_int_sfn_uvb_week@rownames[res_int_sfn_uvb_week$padj < 0.1])
+lgene <- lgene.con[lgene.con %in% lgene.sfn]
+lgene <- lgene[!is.na(lgene)]
+lgene
+```
+
+       
+Plot of DESeq-normalizedcounts of genes with smallest adjusted p-value for the interaction term:     
+```{r deseq2_week2_week15_top9_deseqnorm, fig.height = 6, fig.width = 8}
+# Get the DESeq-normalize counts
+dp1 <- list()
+for (i in 1:length(lgene)) {
+  out <- plotCounts(dds, 
+                    gene = lgene[[i]],
+                    intgroup = c("trt",
+                                 "time"),
+                    returnData = TRUE)
+  dp1[[i]] <- data.table(Geneid = lgene[[i]],
+                         Sample = rownames(out),
+                         out)
+}
+dp1 <- rbindlist(dp1)
+dp1$trt <- factor(dp1$trt,
+                  levels = c("CON",
+                             "UVB",
+                             "SFN"))
+dp1$time <- factor(dp1$time,
+                   levels = c("02w",
+                              "15w"),
+                   labels = c("Week 2",
+                              "Week 15"))
+dp1$Geneid <- factor(dp1$Geneid,
+                     levels = lgene)
+dp1[, mu := mean(count,
+                 na.rm = TRUE),
+    by = c("Geneid",
+           "trt",
+           "time")]
+dmu <- unique(dp1[, -c("Sample",
+                       "count")])
+
+p1 <- ggplot(dp1,
+             aes(x = time,
+                 y = count,
+                 group = trt,
+                 fill = trt)) +
+  facet_wrap(~ Geneid,
+             scale = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black") +
+  geom_line(data = dmu,
+            aes(x = time,
+                y = mu,
+                group = trt,
+                colour = trt),
+            position = position_dodge(0.5),
+            alpha = 0.5,
+            size = 2) +
+  scale_x_discrete("") +
+  scale_y_continuous("DESeq-Normalized Counts") +
+  scale_fill_discrete("Treatment")
+print(p1)
+```
+      
+Compare to the plot of TPM-normalizedcounts of genes with smallest adjusted p-value for the interaction term:     
+```{r deseq2_week2_week15_tpmnorm, fig.height = 6, fig.width = 8}
+# Examine TPM values for the same genes
+tmp <- tpm[Geneid %in% lgene, ]
+tmp$Geneid <- factor(tmp$Geneid,
+                     levels = lgene)
+tmp <- melt.data.table(data = tmp,
+                       id.vars = 1,
+                       measure.vars = 3:ncol(tmp),
+                       variable.name = "Sample",
+                       value.name = "TPM")
+tmp <- merge(dmeta,
+             tmp,
+             by = "Sample")
+
+p1 <- ggplot(tmp,
+             aes(x = Week,
+                 y = TPM,
+                 fill = Treatment,
+                 group = Treatment)) +
+  facet_wrap(~ Geneid,
+             scales = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black")+
+  scale_x_discrete("")
+plot(p1)
+```
+
+# Session Information
+```{r info,eval=TRUE}
+sessionInfo()
+```
