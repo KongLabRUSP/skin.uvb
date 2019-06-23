@@ -25,6 +25,8 @@ require(threejs)
 require(scales)
 require(gridExtra)
 require(ggpubr)
+require(ggdendro)
+require(ggforce)
 
 # NOTE: on DESeq2 Output: 'baseMean' is the average of the normalized count values, 
 # divided by the size factors, taken over all samples in the DESeqDataSet
@@ -320,7 +322,6 @@ p1 <- ggplot(imp,
   scale_x_discrete("") +
   theme(axis.text.x = element_text(angle = 90,
                                    hjust = 1))
-print(p1)
 
 # Save for publication
 tiff(filename = "tmp/pca_pareto.tiff",
@@ -331,6 +332,8 @@ tiff(filename = "tmp/pca_pareto.tiff",
      compression = "lzw+p")
 print(p1)
 graphics.off()
+
+print(p1)
 ```
 
 # First 3 principal components, pairwise
@@ -497,10 +500,6 @@ sum(res_con_uvb_week2$padj < 0.1,
     na.rm = TRUE)
 
 # MA plot
-plotMA(res_con_uvb_week2,
-             main = "Control vs. UVB at Week 2",
-             alpha = 0.8)
-
 # Save for publication
 tiff(filename = "tmp/ma_w2_con_uvb.tiff",
      height = 6,
@@ -512,6 +511,10 @@ plotMA(res_con_uvb_week2,
              main = "Control vs. UVB at Week 2",
              alpha = 0.8)
 graphics.off()
+
+plotMA(res_con_uvb_week2,
+             main = "Control vs. UVB at Week 2",
+             alpha = 0.8)
 ```
 
 ## Protective effect of SFN at Week 2
@@ -528,10 +531,6 @@ sum(res_sfn_uvb_week2$padj < 0.1,
     na.rm = TRUE)
 
 # MA plot
-print(plotMA(res_sfn_uvb_week2,
-             main = "UVB+SFN vs UVB at Week 2",
-             alpha = 0.8))
-
 # Save for publication
 tiff(filename = "tmp/ma_w2_sfn_uvb.tiff",
      height = 6,
@@ -543,6 +542,10 @@ print(plotMA(res_sfn_uvb_week2,
              main = "UVB+SFN vs UVB at Week 2",
              alpha = 0.8))
 graphics.off()
+
+print(plotMA(res_sfn_uvb_week2,
+             main = "UVB+SFN vs UVB at Week 2",
+             alpha = 0.8))
 ```
 
 ## Genes that were significantly differentiated at both timepoints
@@ -593,11 +596,8 @@ dmu <- unique(dp1[, -c("Sample",
 head(dmu)
 ```
 
-```{r deseq2_w2sign_deseqnorm_w2plot, echo = FALSE, message = FALSE, fig.height = 6, fig.width = 8}
+```{r deseq2_w2sign_deseqnorm_w2_up_dn, echo = FALSE, message = FALSE, fig.height = 6, fig.width = 8}
 dmu.w2 <- dmu[time == "Week 2", ]
-dmu.w2[, dn.up := (mu[trt == "UVB"] < mu[trt == "CON"]) &
-               (mu[trt == "UVB"] < mu[trt == "SFN"]),
-       by = Geneid]
 dmu.w2[, up.dn := (mu[trt == "UVB"] > mu[trt == "CON"]) &
                (mu[trt == "UVB"] > mu[trt == "SFN"]),
        by = Geneid]
@@ -619,46 +619,20 @@ p1 <- ggplot(dmu.w2[up.dn == TRUE, ],
         ggtitle("Genes Upregulated by UVB")
 theme(axis.text.x = element_text(angle = 45,
                                  hjust = 1))
-p1
-# tiff(filename = "tmp/w2_up_dn.tiff",
-#      height = 6,
-#      width = 8,
-#      units = 'in',
-#      res = 300,
-#      compression = "lzw+p")
-# print(p1)
-# graphics.off()
 
-p2 <- ggplot(dmu.w2[dn.up == TRUE, ],
-             aes(x = trt,
-                 y = mu,
-                 group = Geneid,
-                 fill = trt)) +
-        facet_wrap(~ Geneid,
-                   scale = "free_y") +
-        geom_line(position = position_dodge(0.5)) +
-        geom_point(position = position_dodge(0.5),
-                   shape = 21,
-                   size = 3,
-                   color = "black") +
-        scale_x_discrete("") +
-        scale_y_continuous("Differentially Expressed Genes at Week 2") +
-        scale_fill_discrete("Treatment") +
-        ggtitle("Genes Downregulated by UVB")
-theme(axis.text.x = element_text(angle = 45,
-                                 hjust = 1))
-p2
-# tiff(filename = "tmp/w2_dn_up.tiff",
-#      height = 6,
-#      width = 8,
-#      units = 'in',
-#      res = 300,
-#      compression = "lzw+p")
-# print(p2)
-# graphics.off()
+tiff(filename = "tmp/w2_up_dn.tiff",
+     height = 6,
+     width = 8,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
+graphics.off()
+
+print(p1)
 ```
 
-## Did these trends persisted?
+## Did down-up-down trend persist?
 ```{r deseq2_w2sign_deseqnorm_plot_all_up_dn, fig.height = 10, fig.width = 12}
 dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$up.dn]), ]
 dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$up.dn]), ]
@@ -687,6 +661,42 @@ p1 <- ggplot(dp1.tmp,
 print(p1)
 ```
 
+```{r deseq2_w2sign_deseqnorm_w2_dn_up, echo = FALSE, message = FALSE, fig.height = 6, fig.width = 8}
+dmu.w2[, dn.up := (mu[trt == "UVB"] < mu[trt == "CON"]) &
+               (mu[trt == "UVB"] < mu[trt == "SFN"]),
+       by = Geneid]
+p2 <- ggplot(dmu.w2[dn.up == TRUE, ],
+             aes(x = trt,
+                 y = mu,
+                 group = Geneid,
+                 fill = trt)) +
+        facet_wrap(~ Geneid,
+                   scale = "free_y") +
+        geom_line(position = position_dodge(0.5)) +
+        geom_point(position = position_dodge(0.5),
+                   shape = 21,
+                   size = 3,
+                   color = "black") +
+        scale_x_discrete("") +
+        scale_y_continuous("Differentially Expressed Genes at Week 2") +
+        scale_fill_discrete("Treatment") +
+        ggtitle("Genes Downregulated by UVB")
+theme(axis.text.x = element_text(angle = 45,
+                                 hjust = 1))
+
+tiff(filename = "tmp/w2_dn_up.tiff",
+     height = 6,
+     width = 8,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+print(p2)
+graphics.off()
+
+print(p2)
+```
+
+## Did up-down-up trend persist?
 ```{r deseq2_w2sign_deseqnorm_plot_all_dn_up, fig.height = 10, fig.width = 12}
 dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$dn.up]), ]
 dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w2$Geneid[dmu.w2$dn.up]), ]
@@ -716,6 +726,173 @@ print(p1)
 ```
 
 In many of these genes, UVB+SFN moved closer to UVB over time.
+
+## Heatmap for Week 2 differentially methylated genes
+```{r w2_heatmap, fig.height=8, fig.width=8}
+up.dn.w2 <- unique(as.character(dmu.w2$Geneid[dmu.w2$up.dn]))
+dn.up.w2 <- unique(as.character(dmu.w2$Geneid[dmu.w2$dn.up]))
+ll <- unique(c(up.dn.w2,
+               dn.up.w2))
+# 36 genes
+
+con_uvb_week2 <- data.table(Geneid = res_con_uvb_week2@rownames,
+                            log2FoldChange = res_con_uvb_week2@listData$log2FoldChange)
+
+sfn_uvb_week2 <- data.table(Geneid = res_sfn_uvb_week2@rownames,
+                            log2FoldChange = -res_sfn_uvb_week2@listData$log2FoldChange)
+
+t1 <- merge(con_uvb_week2[con_uvb_week2$Geneid %in% ll, ],
+            sfn_uvb_week2[sfn_uvb_week2$Geneid %in% ll, ],
+            by = "Geneid")
+colnames(t1)[2:3] <- c("Control vs. UVB",
+                       "UVB vs. SFN+UVB")
+t1 <- t1[order(t1$`Control vs. UVB`,
+               decreasing = TRUE), ]
+write.csv(t1,
+          file = "tmp/w2_sign_changes.csv",
+          row.names = FALSE)
+
+ll <- melt.data.table(data = t1,
+                      id.vars = 1,
+                      measure.vars = 2:3,
+                      variable.name = "Comparison",
+                      value.name = "Gene Expression Diff")
+ll$Comparison <- factor(ll$Comparison,
+                        levels = c("Control vs. UVB",
+                                   "UVB vs. SFN+UVB"))
+lvls <- ll[ll$Comparison == "Control vs. UVB", ]
+ll$Geneid <- factor(ll$Geneid,
+                    levels = lvls$Geneid[order(lvls$`Gene Expression Diff`)])
+
+# Add dendrogram----
+dt.dndr <- data.frame(t1[Geneid %in% levels(ll$Geneid), ])
+rownames(dt.dndr) <- dt.dndr$Gene
+dt.dndr <- dt.dndr[, -1]
+
+# Compute distances between genes----
+sampleDists <- dist(dt.dndr)
+
+# Make dendrogram data----
+dhc <- as.dendrogram(hclust(d = sampleDists),
+                     horiz = TRUE)
+ddata <- dendro_data(dhc, 
+                     type = "rectangle")
+
+# Segment data----
+dtp1 <- segment(ddata)
+
+# Hitmap data----
+dtp2 <- ll
+dtp2$Geneid <- factor(dtp2$Geneid,
+                      levels = ddata$labels$label)
+
+offset.size <- 4
+
+p1 <- ggplot(data = dtp2) +
+  coord_polar("y",
+              start = -0.3,
+              direction = -1) +
+  geom_tile(aes(x =  as.numeric(Comparison),
+                y = Geneid, 
+                fill = `Gene Expression Diff`),
+            color = "white") +
+  geom_text(data = dtp2[Comparison == "Control vs. UVB", ],
+            aes(x = rep(1.75,
+                        nlevels(Geneid)),
+                y = Geneid,
+                angle = 90 + seq(from = 30,
+                                 to = 330,
+                                 length.out = nlevels(Geneid))[as.numeric(Geneid)] + 
+                  offset.size,
+                label = unique(Geneid)),
+            hjust = 0) +
+  geom_text(data = dtp2[Geneid == levels(dtp2$Geneid)[1], ],
+            aes(x = 1:nlevels(Comparison),
+                y = rep(-offset.size,
+                        nlevels(Comparison)),
+                angle = 0,
+                label = levels(Comparison)),
+            hjust = 1,
+            size = 5) +
+  scale_fill_gradient2(low = "red", 
+                       high = "green", 
+                       mid = "grey", 
+                       midpoint = 0, 
+                       name = "") +
+  scale_y_discrete("",
+                   expand = c(0, 0)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 15),
+        legend.direction = "horizontal",
+        legend.key.width = unit(1, "in"),
+        legend.key.height = unit(0.3, "in")) +
+  geom_segment(data = dtp1,
+               aes(x = -sqrt(y) + 0.5,
+                   y = x, 
+                   xend = -sqrt(yend) + 0.5,
+                   yend = xend),
+               size = 1) 
+
+tiff(filename = "tmp/skin_ubv_w2_sfn_hitmap_with_phylo.tiff",
+     height = 8,
+     width = 8,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+plot(p1)
+graphics.off()
+
+print(p1)
+```
+
+## Venn Diagram, Week 2
+```{r w2-venn, fig.height=6,fig.width=4}
+# 1. Ctrl vs. UVB
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 1546, 9%
+# LFC < 0 (down)     : 1537, 8.9%
+# 23 genes down-up-down
+
+# 2. SFN+UVB vs. UVB
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 26, 0.15%
+# LFC < 0 (down)     : 35, 0.2%
+# 13 gens up-down-up
+
+p1 <- ggplot() +
+  geom_circle(aes(x0 = c(1, 2, 1, 2),
+                  y0 = c(1, 1, 4, 4),
+                  r = rep(1, 4),
+                  color = factor(c(2, 1, 1, 2))),
+              size = 2) +
+  geom_text(aes(x = rep(c(0.5, 1.5, 2.5), 2),
+                y = rep(c(1, 4), each = 3),
+                label = format(c(26, 13, 35, 1546, 23, 1537),
+                               big.mark = ","))) +
+  scale_color_manual(values = c("green", "red")) +
+  theme_void() +
+  theme(legend.position = "none")
+
+tiff(filename = "tmp/skin_ubv_sfn_w2_venn.tiff",
+     height = 6,
+     width = 4,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+plot(p1)
+graphics.off()
+
+print(p1)
+```
+
 
 ## Interactions terms
 Tests if the effect of NOT treating with UVB vs. treating with UVB is different at Week 15 compared to Week 2:    
