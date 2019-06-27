@@ -84,6 +84,7 @@ nrow(dt1)
 
 datatable(head(dt1, 10),
           rownames = FALSE,
+          class = "cell-border stripe",
           options = list(pageLength = 10),
           caption = "Table 1: first 10 rows of the count table")
 ```
@@ -110,13 +111,19 @@ tpm <- data.table(Geneid = dt1$Geneid,
                         }))
 colSums(tpm[, -c(1:2)])
 
-formatRound(datatable(head(tpm, 10),
-                      rownames = FALSE,
-                      options = list(pageLength = 10),
-                      caption = "Table 2: transcripts per kilobase million (TPM) normalized counts"),
-            columns = 3:ncol(tpm),
-            digits = 2)
-
+datatable(head(tpm, 10),
+          rownames = FALSE,
+          class = "cell-border stripe",
+          options = list(pageLength = 10),
+          caption = "Table 2: transcripts per kilobase million (TPM) normalized counts") %>% 
+  formatRound(columns = 3:ncol(tpm),
+              digits = 2) %>%
+  formatStyle(columns = 3:ncol(tpm),
+              color = "black",
+              backgroundColor = styleInterval(cuts = c(10, 100),
+                                              values = c("white",
+                                                         "yellow",
+                                                         "red")))
 # Total TPM
 total <- rowSums(tpm[, 3:ncol(tpm)])
 
@@ -125,6 +132,10 @@ tpm$Geneid <- factor(tpm$Geneid ,
                      levels = tpm$Geneid[order(total,
                                                decreasing = FALSE)])
 ```
+
+Color Legend:    
+**YELLOW**: TMP > 10      
+**RED**: TMP > 100    
 
 # Top 100 most abundant RNA molecules
 ```{r most_abundant}
@@ -258,6 +269,8 @@ dmeta$Replica <- factor(dmeta$Replica,
                         levels = 0:1)
 
 datatable(dmeta,
+          rownames = FALSE,
+          class = "cell-border stripe",
           options = list(pageLength = nrow(dmeta)))
 ```
 
@@ -483,13 +496,19 @@ resultsNames(dds)
 # Model matrix
 mm1 <- model.matrix(~ time + trt + time:trt, dmeta)
 mm1
+
+head(mcols(dds))
 ```
 
 # Results
 ## Effect of UVB at Week 2
 ```{r deseq2_results_week2_con_uvb}
+# res_con_uvb_week2 <- results(dds,
+#                              contrast = c(0,0,0,1,0,0,0,0,0),
+#                              alpha = 0.1)
+# SAME AS:
 res_con_uvb_week2 <- results(dds,
-                             contrast = c(0,0,0,1,0,0,0,0,0),
+                             name = "trt_CON_vs_UVB",
                              alpha = 0.1)
 res_con_uvb_week2 <- res_con_uvb_week2[order(res_con_uvb_week2$padj,
                                                    decreasing = FALSE),]
@@ -519,8 +538,12 @@ plotMA(res_con_uvb_week2,
 
 ## Protective effect of SFN at Week 2
 ```{r deseq2_results_week2_sfn_uvb}
+# res_sfn_uvb_week2 <- results(dds,
+#                              contrast = c(0,0,0,0,1,0,0,0,0),
+#                              alpha = 0.1)
+# SAME AS;
 res_sfn_uvb_week2 <- results(dds,
-                             contrast = c(0,0,0,0,1,0,0,0,0),
+                             name = "trt_SFN_vs_UVB",
                              alpha = 0.1)
 res_sfn_uvb_week2 <- res_sfn_uvb_week2[order(res_sfn_uvb_week2$padj,
                                                    decreasing = FALSE),]
@@ -593,7 +616,11 @@ dp1[, mu := mean(count,
            "time")]
 dmu <- unique(dp1[, -c("Sample",
                        "count")])
-head(dmu)
+datatable(head(dmu),
+          rownames = FALSE,
+          class = "cell-border stripe") %>% 
+  formatRound(columns = 4,
+              digits = 2)
 ```
 
 ```{r deseq2_w2sign_deseqnorm_w2_up_dn, echo = FALSE, message = FALSE, fig.height = 6, fig.width = 8}
@@ -896,13 +923,43 @@ print(p1)
 ## Effect of UVB at Week 15
 ```{r deseq2_results_week15_con_uvb}
 res_con_uvb_week15 <- results(dds,
-                             contrast = c(0,1,0,1,0,0,0,0,0),
+                             contrast = c(0,0,0,1,0,1,0,0,0),
                              alpha = 0.1)
+# NOT THE SAME AS?!!!:
+# res_con_uvb_week15 <- results(dds,
+#                              contrast = list("trt_CON_vs_UVB",
+#                                              "time15w.trtCON"),
+#                              alpha = 0.1)
+
+# out of 17202 with nonzero total read count
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 1513, 8.8%
+# LFC < 0 (down)     : 1463, 8.5%
+# outliers [1]       : 0, 0%
+# low counts [2]     : 2668, 16%
+# (mean count < 2)
+# [1] see 'cooksCutoff' argument of ?results
+# [2] see 'independentFiltering' argument of ?results
+# 
+# [1] 2976
+# 
+# out of 17202 with nonzero total read count
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 469, 2.7%
+# LFC < 0 (down)     : 455, 2.6%
+# outliers [1]       : 0, 0%
+# low counts [2]     : 4002, 23%
+# (mean count < 6)
+# [1] see 'cooksCutoff' argument of ?results
+# [2] see 'independentFiltering' argument of ?results
+# 
+# [1] 924
+
 res_con_uvb_week15 <- res_con_uvb_week15[order(res_con_uvb_week15$padj,
                                                    decreasing = FALSE),]
 summary(res_con_uvb_week15)
 
-# How many adjusted p-values were less than 0.1?
+# How many adjusted p-values were less than 0.01?
 sum(res_con_uvb_week15$padj < 0.1, 
     na.rm = TRUE)
 
@@ -926,8 +983,13 @@ plotMA(res_con_uvb_week15,
 ## Protective effect of SFN at Week 15
 ```{r deseq2_results_week15_sfn_uvb}
 res_sfn_uvb_week15 <- results(dds,
-                             contrast = c(0,1,0,0,1,0,0,0,0),
+                             contrast = c(0,0,0,0,1,0,0,1,0),
                              alpha = 0.1)
+# NOT THE SAME AS!!!:
+# res_sfn_uvb_week15 <- results(dds,
+#                              contrast = list("trt_SFN_vs_UVB",
+#                                              "time15w.trtSFN"),
+#                              alpha = 0.1)
 res_sfn_uvb_week15 <- res_sfn_uvb_week15[order(res_sfn_uvb_week15$padj,
                                                    decreasing = FALSE),]
 summary(res_sfn_uvb_week15)
@@ -960,7 +1022,7 @@ lgene.w15.con <- unique(res_con_uvb_week15@rownames[res_con_uvb_week15$padj < 0.
 lgene.w15.sfn <- unique(res_sfn_uvb_week15@rownames[res_sfn_uvb_week15$padj < 0.1])
 lgene.w15 <- lgene.w15.con[lgene.w15.con %in% lgene.w15.sfn]
 lgene.w15 <- lgene.w15 [!is.na(lgene.w15 )]
-lgene.w15
+length(unique(lgene.w15))
 ```
 Plot of DESeq-normalizedcounts of genes significant in both comparisons at Week 15:   
 
@@ -998,7 +1060,11 @@ dp1[, mu := mean(count,
            "time")]
 dmu <- unique(dp1[, -c("Sample",
                        "count")])
-head(dmu)
+datatable(head(dmu),
+          rownames = FALSE,
+          class = "cell-border stripe") %>% 
+  formatRound(columns = 4,
+              digits = 2)
 ```
 
 ```{r deseq2_w15sign_deseqnorm_w15_up_dn, echo = FALSE, message = FALSE, fig.height = 6, fig.width = 8}
@@ -1139,10 +1205,10 @@ ll <- unique(c(up.dn.w15,
 # 16 genes
 
 con_uvb_week15 <- data.table(Geneid = res_con_uvb_week15@rownames,
-                            log2FoldChange = res_con_uvb_week15@listData$log2FoldChange)
+                             log2FoldChange = res_con_uvb_week15@listData$log2FoldChange)
 
 sfn_uvb_week15 <- data.table(Geneid = res_sfn_uvb_week15@rownames,
-                            log2FoldChange = -res_sfn_uvb_week15@listData$log2FoldChange)
+                             log2FoldChange = -res_sfn_uvb_week15@listData$log2FoldChange)
 
 t1 <- merge(con_uvb_week15[con_uvb_week15$Geneid %in% ll, ],
             sfn_uvb_week15[sfn_uvb_week15$Geneid %in% ll, ],
