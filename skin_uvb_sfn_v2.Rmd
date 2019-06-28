@@ -315,21 +315,29 @@ p1 <- ggplot(imp,
            fill = "grey",
            color = "black") +
   geom_line(aes(y = rescale(Cumulative,
-                            to = c(min(Cumulative)*30/100,
-                                   30)),
+                            to = c(min(Cumulative)*max(imp$Variance)/100,
+                                   max(imp$Variance))),
                 group = rep(1, nrow(imp)))) +
   geom_point(aes(y = rescale(Cumulative,
-                             to = c(min(Cumulative)*30/100,
-                                    30)))) +
+                             to = c(min(Cumulative)*max(imp$Variance)/100,
+                                    max(imp$Variance))))) +
   scale_y_continuous("% Variance Explained",
-                     breaks = seq(0, 30, by = 5),
-                     labels = paste(seq(0, 30, by = 5),
+                     breaks = seq(from = 0, 
+                                  to = max(imp$Variance), 
+                                  by = 5),
+                     labels = paste(seq(from = 0, 
+                                        to = max(imp$Variance),
+                                        by = 5),
                                     "%",
                                     sep = ""),
                      sec.axis = sec_axis(trans = ~.,
                                          name = "% Cumulative Variance",
-                                         breaks = seq(0, 30, length.out = 5),
-                                         labels = paste(seq(0, 100, length.out = 5),
+                                         breaks = seq(from = 0, 
+                                                      to = max(imp$Variance), 
+                                                      length.out = 5),
+                                         labels = paste(seq(from = 0, 
+                                                            to = 100, 
+                                                            length.out = 5),
                                                         "%",
                                                         sep = ""))) +
   scale_x_discrete("") +
@@ -923,14 +931,11 @@ print(p1)
 ## Effect of UVB at Week 15
 ```{r deseq2_results_week15_con_uvb}
 res_con_uvb_week15 <- results(dds,
-                             contrast = c(0,0,0,1,0,1,0,0,0),
-                             alpha = 0.1)
-# NOT THE SAME AS?!!!:
-# res_con_uvb_week15 <- results(dds,
-#                              contrast = list("trt_CON_vs_UVB",
-#                                              "time15w.trtCON"),
-#                              alpha = 0.1)
-
+                              contrast = c(0,0,0,1,0,1,0,0,0),
+                              alpha = 0.1)
+res_con_uvb_week15 <- res_con_uvb_week15[order(res_con_uvb_week15$padj,
+                                               decreasing = FALSE),]
+summary(res_con_uvb_week15)
 # out of 17202 with nonzero total read count
 # adjusted p-value < 0.1
 # LFC > 0 (up)       : 1513, 8.8%
@@ -938,11 +943,20 @@ res_con_uvb_week15 <- results(dds,
 # outliers [1]       : 0, 0%
 # low counts [2]     : 2668, 16%
 # (mean count < 2)
-# [1] see 'cooksCutoff' argument of ?results
-# [2] see 'independentFiltering' argument of ?results
-# 
-# [1] 2976
-# 
+
+# How many adjusted p-values were less than 0.01?
+sum(res_con_uvb_week15$padj < 0.1, 
+    na.rm = TRUE)
+# 2976
+
+# NOT THE SAME AS?!!!:
+res_con_uvb_week15.1 <- results(dds,
+                                contrast = list("trt_CON_vs_UVB",
+                                                "time15w.trtCON"),
+                                alpha = 0.1)
+res_con_uvb_week15.1 <- res_con_uvb_week15.1[order(res_con_uvb_week15.1$padj,
+                                                   decreasing = FALSE),]
+summary(res_con_uvb_week15.1)
 # out of 17202 with nonzero total read count
 # adjusted p-value < 0.1
 # LFC > 0 (up)       : 469, 2.7%
@@ -950,18 +964,11 @@ res_con_uvb_week15 <- results(dds,
 # outliers [1]       : 0, 0%
 # low counts [2]     : 4002, 23%
 # (mean count < 6)
-# [1] see 'cooksCutoff' argument of ?results
-# [2] see 'independentFiltering' argument of ?results
-# 
-# [1] 924
-
-res_con_uvb_week15 <- res_con_uvb_week15[order(res_con_uvb_week15$padj,
-                                                   decreasing = FALSE),]
-summary(res_con_uvb_week15)
 
 # How many adjusted p-values were less than 0.01?
-sum(res_con_uvb_week15$padj < 0.1, 
+sum(res_con_uvb_week15.1$padj < 0.1, 
     na.rm = TRUE)
+# 924
 
 # MA plot
 # Save for publication
@@ -972,31 +979,56 @@ tiff(filename = "tmp/ma_w15_con_uvb.tiff",
      res = 600,
      compression = "lzw+p")
 plotMA(res_con_uvb_week15,
-             main = "Control vs. UVB at Week 15",
-             alpha = 0.8)
+       main = "Control vs. UVB at Week 15",
+       alpha = 0.8)
 graphics.off()
 
 plotMA(res_con_uvb_week15,
-             main = "Control vs. UVB at Week 15",
-             alpha = 0.8)
+       main = "Control vs. UVB at Week 15",
+       alpha = 0.8)
 ```
+
 ## Protective effect of SFN at Week 15
 ```{r deseq2_results_week15_sfn_uvb}
 res_sfn_uvb_week15 <- results(dds,
-                             contrast = c(0,0,0,0,1,0,0,1,0),
-                             alpha = 0.1)
-# NOT THE SAME AS!!!:
-# res_sfn_uvb_week15 <- results(dds,
-#                              contrast = list("trt_SFN_vs_UVB",
-#                                              "time15w.trtSFN"),
-#                              alpha = 0.1)
+                              contrast = c(0,0,0,0,1,0,0,1,0),
+                              alpha = 0.1)
 res_sfn_uvb_week15 <- res_sfn_uvb_week15[order(res_sfn_uvb_week15$padj,
-                                                   decreasing = FALSE),]
+                                               decreasing = FALSE),]
 summary(res_sfn_uvb_week15)
+# out of 17202 with nonzero total read count
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 20, 0.12%
+# LFC < 0 (down)     : 10, 0.058%
+# outliers [1]       : 0, 0%
+# low counts [2]     : 7004, 41%
+# (mean count < 53)
 
 # How many adjusted p-values were less than 0.05?
 sum(res_sfn_uvb_week15$padj < 0.1, 
     na.rm = TRUE)
+# 30
+
+# NOT THE SAME AS!!!:
+res_sfn_uvb_week15.1 <- results(dds,
+                                contrast = list("trt_SFN_vs_UVB",
+                                                "time15w.trtSFN"),
+                                alpha = 0.1)
+res_sfn_uvb_week15.1 <- res_sfn_uvb_week15.1[order(res_sfn_uvb_week15.1$padj,
+                                                   decreasing = FALSE),]
+summary(res_sfn_uvb_week15.1)
+# out of 17202 with nonzero total read count
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 14, 0.081%
+# LFC < 0 (down)     : 24, 0.14%
+# outliers [1]       : 0, 0%
+# low counts [2]     : 3335, 19%
+# (mean count < 4)
+
+# How many adjusted p-values were less than 0.1?
+sum(res_sfn_uvb_week15.1$padj < 0.1, 
+    na.rm = TRUE)
+# 38
 
 # MA plot
 # Save for publication
@@ -1014,6 +1046,7 @@ graphics.off()
 print(plotMA(res_sfn_uvb_week15,
              main = "UVB+SFN vs UVB at Week 15",
              alpha = 0.8))
+
 ```
 
 ## Genes that were significantly differentiated at both comparisons at Week 15
@@ -1269,7 +1302,7 @@ p1 <- ggplot(data = dtp2) +
             aes(x = rep(1.75,
                         nlevels(Geneid)),
                 y = Geneid,
-                angle = 90 + seq(from = 30,
+                angle = 90 + seq(from = 90,
                                  to = 330,
                                  length.out = nlevels(Geneid))[as.numeric(Geneid)] + 
                   offset.size,
@@ -1325,17 +1358,18 @@ print(p1)
 
 ## Venn Diagram, Week 15
 ```{r w15-venn, fig.height=6,fig.width=4}
+# out of 17202 with nonzero total read count
 # 1. Ctrl vs. UVB
 # adjusted p-value < 0.1
-# LFC > 0 (up)       : 1449, 8.4%
-# LFC < 0 (down)     : 1481, 8.6%
-# 23 genes down-up-down
+# LFC > 0 (up)       : 1513, 8.8%
+# LFC < 0 (down)     : 1463, 8.5%
+# 2 genes down-up-down
 
 # 2. SFN+UVB vs. UVB
 # adjusted p-value < 0.1
-# LFC > 0 (up)       : 27, 0.16%
-# LFC < 0 (down)     : 9, 0.052%
-# 13 gens up-down-up
+# LFC > 0 (up)       : 20, 0.12%
+# LFC < 0 (down)     : 10, 0.058%
+# 9 gens up-down-up
 
 p1 <- ggplot() +
   geom_circle(aes(x0 = c(1, 2, 1, 2),
@@ -1345,7 +1379,7 @@ p1 <- ggplot() +
               size = 2) +
   geom_text(aes(x = rep(c(0.5, 1.5, 2.5), 2),
                 y = rep(c(1, 4), each = 3),
-                label = format(c(27, 8, 9, 1449, 8, 1481),
+                label = format(c(20, 9, 10, 1513, 2, 1463),
                                big.mark = ","))) +
   scale_color_manual(values = c("green", "red")) +
   theme_void() +
