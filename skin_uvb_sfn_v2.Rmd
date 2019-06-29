@@ -965,7 +965,7 @@ summary(res_con_uvb_week15.1)
 # low counts [2]     : 4002, 23%
 # (mean count < 6)
 
-# How many adjusted p-values were less than 0.01?
+# How many adjusted p-values were less than 0.1?
 sum(res_con_uvb_week15.1$padj < 0.1, 
     na.rm = TRUE)
 # 924
@@ -1100,7 +1100,7 @@ datatable(head(dmu),
               digits = 2)
 ```
 
-```{r deseq2_w15sign_deseqnorm_w15_up_dn, echo = FALSE, message = FALSE, fig.height = 6, fig.width = 8}
+```{r deseq2_w15sign_deseqnorm_w15_up_dn, echo = FALSE, message = FALSE, fig.height = 4, fig.width = 8}
 dmu.w15 <- dmu[time == "Week 15", ]
 dmu.w15[, up.dn := (mu[trt == "UVB"] > mu[trt == "CON"]) &
                (mu[trt == "UVB"] > mu[trt == "SFN"]),
@@ -1125,7 +1125,7 @@ theme(axis.text.x = element_text(angle = 45,
                                  hjust = 1))
 
 tiff(filename = "tmp/w15_up_dn.tiff",
-     height = 6,
+     height = 4,
      width = 8,
      units = 'in',
      res = 300,
@@ -1137,7 +1137,7 @@ print(p1)
 ```
 
 ## Did down-up-down trend persist?
-```{r deseq2_w15sign_deseqnorm_plot_all_up_dn, fig.height = 10, fig.width = 12}
+```{r deseq2_w15sign_deseqnorm_plot_all_up_dn, fig.height = 4, fig.width = 8}
 dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w15$Geneid[dmu.w15$up.dn]), ]
 dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w15$Geneid[dmu.w15$up.dn]), ]
 p1 <- ggplot(dp1.tmp,
@@ -1201,7 +1201,7 @@ print(p2)
 ```
 
 ## Did up-down-up trend persist?
-```{r deseq2_w15sign_deseqnorm_plot_all_dn_up, fig.height = 10, fig.width = 12}
+```{r deseq2_w15sign_deseqnorm_plot_all_dn_up, fig.height = 6, fig.width = 8}
 dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w15$Geneid[dmu.w15$dn.up]), ]
 dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w15$Geneid[dmu.w15$dn.up]), ]
 p1 <- ggplot(dp1.tmp,
@@ -1397,58 +1397,479 @@ graphics.off()
 print(p1)
 ```
 
-## Interactions terms
-Tests if the effect of NOT treating with UVB vs. treating with UVB is different at Week 15 compared to Week 2:    
+## Effect of UVB at Week 25
+```{r deseq2_results_week25_con_uvb}
+res_con_uvb_week25 <- results(dds,
+                              contrast = c(0,0,0,1,0,0,1,0,0),
+                              alpha = 0.1)
+res_con_uvb_week25 <- res_con_uvb_week25[order(res_con_uvb_week25$padj,
+                                               decreasing = FALSE),]
+summary(res_con_uvb_week25)
+# out of 17202 with nonzero total read count
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 3389, 20%
+# LFC < 0 (down)     : 2917, 17%
+# outliers [1]       : 0, 0%
+# low counts [2]     : 2335, 14%
+# (mean count < 2)
+
+# How many adjusted p-values were less than 0.1?
+sum(res_con_uvb_week25$padj < 0.1, 
+    na.rm = TRUE)
+# 6306
+
+# MA plot
+# Save for publication
+tiff(filename = "tmp/ma_w15_con_uvb.tiff",
+     height = 6,
+     width = 7,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+plotMA(res_con_uvb_week25,
+       main = "Control vs. UVB at Week 25",
+       alpha = 0.8)
+graphics.off()
+
+plotMA(res_con_uvb_week25,
+       main = "Control vs. UVB at Week 25",
+       alpha = 0.8)
+```
+
+## Protective effect of SFN at Week 25
+```{r deseq2_results_week25_sfn_uvb}
+res_sfn_uvb_week25 <- results(dds,
+                              contrast = c(0,0,0,0,1,0,0,0,1),
+                              alpha = 0.1)
+res_sfn_uvb_week25 <- res_sfn_uvb_week25[order(res_sfn_uvb_week25$padj,
+                                               decreasing = FALSE),]
+summary(res_sfn_uvb_week25)
+# out of 17202 with nonzero total read count
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 3, 0.017%
+# LFC < 0 (down)     : 8, 0.047%
+# outliers [1]       : 0, 0%
+# low counts [2]     : 0, 0%
+# (mean count < 0)
+
+# How many adjusted p-values were less than 0.05?
+sum(res_sfn_uvb_week25$padj < 0.1, 
+    na.rm = TRUE)
+# 30
+
+# MA plot
+# Save for publication
+tiff(filename = "tmp/ma_w2_sfn_uvb.tiff",
+     height = 6,
+     width = 7,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+print(plotMA(res_sfn_uvb_week25,
+             main = "UVB+SFN vs UVB at Week 25",
+             alpha = 0.8))
+graphics.off()
+
+print(plotMA(res_sfn_uvb_week25,
+             main = "UVB+SFN vs UVB at Week 25",
+             alpha = 0.8))
+
+```
+
+## Genes that were significantly differentiated at both comparisons at Week 25
+```{r sign_w25}
+lgene.w25.con <- unique(res_con_uvb_week25@rownames[res_con_uvb_week25$padj < 0.1])
+lgene.w25.sfn <- unique(res_sfn_uvb_week25@rownames[res_sfn_uvb_week25$padj < 0.1])
+lgene.w25 <- lgene.w25.con[lgene.w25.con %in% lgene.w25.sfn]
+lgene.w25 <- lgene.w25 [!is.na(lgene.w25 )]
+length(unique(lgene.w25))
+```
+Plot of DESeq-normalizedcounts of genes significant in both comparisons at Week 25: 
+
+```{r deseq2_w25sign_deseqnorm}
+# Get the DESeq-normalize counts
+dp1 <- list()
+for (i in 1:length(lgene.w25)) {
+  out <- plotCounts(dds, 
+                    gene = lgene.w25[[i]],
+                    intgroup = c("trt",
+                                 "time"),
+                    returnData = TRUE)
+  dp1[[i]] <- data.table(Geneid = lgene.w25[[i]],
+                         Sample = rownames(out),
+                         out)
+}
+dp1 <- rbindlist(dp1)
+dp1$trt <- factor(dp1$trt,
+                  levels = c("CON",
+                             "UVB",
+                             "SFN"))
+dp1$time <- factor(dp1$time,
+                   levels = c("02w",
+                              "15w",
+                              "25w"),
+                   labels = c("Week 2",
+                              "Week 15",
+                              "Week 25"))
+dp1$Geneid <- factor(dp1$Geneid,
+                     levels = lgene.w25)
+dp1[, mu := mean(count,
+                 na.rm = TRUE),
+    by = c("Geneid",
+           "trt",
+           "time")]
+dmu <- unique(dp1[, -c("Sample",
+                       "count")])
+datatable(head(dmu),
+          rownames = FALSE,
+          class = "cell-border stripe") %>% 
+  formatRound(columns = 4,
+              digits = 2)
+```
+
+```{r deseq2_w25sign_deseqnorm_w25_up_dn, echo = FALSE, message = FALSE, fig.height = 4, fig.width = 8}
+dmu.w25 <- dmu[time == "Week 25", ]
+dmu.w25[, up.dn := (mu[trt == "UVB"] > mu[trt == "CON"]) &
+               (mu[trt == "UVB"] > mu[trt == "SFN"]),
+       by = Geneid]
+p1 <- ggplot(dmu.w25[up.dn == TRUE, ],
+             aes(x = trt,
+                 y = mu,
+                 group = Geneid,
+                 fill = trt)) +
+        facet_wrap(~ Geneid,
+                   scale = "free_y") +
+        geom_line(position = position_dodge(0.5)) +
+        geom_point(position = position_dodge(0.5),
+                   shape = 21,
+                   size = 3,
+                   color = "black") +
+        scale_x_discrete("") +
+        scale_y_continuous("Differentially Expressed Genes at Week 25") +
+        scale_fill_discrete("Treatment") +
+        ggtitle("Genes Upregulated by UVB")
+theme(axis.text.x = element_text(angle = 45,
+                                 hjust = 1))
+
+tiff(filename = "tmp/w25_up_dn.tiff",
+     height = 4,
+     width = 8,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
+graphics.off()
+
+print(p1)
+```
+
+## Did down-up-down trend persist?
+```{r deseq2_w25sign_deseqnorm_plot_all_up_dn, fig.height = 4, fig.width = 8}
+dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w25$Geneid[dmu.w25$up.dn]), ]
+dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w25$Geneid[dmu.w25$up.dn]), ]
+p1 <- ggplot(dp1.tmp,
+             aes(x = time,
+                 y = count,
+                 group = trt,
+                 fill = trt)) +
+  facet_wrap(~ Geneid,
+             scale = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black") +
+  geom_line(data = dmu.tmp,
+            aes(x = time,
+                y = mu,
+                group = trt,
+                colour = trt),
+            position = position_dodge(0.5),
+            alpha = 0.5,
+            size = 2) +
+  scale_x_discrete("") +
+  scale_y_continuous("DESeq-Normalized Counts") +
+  scale_fill_discrete("Treatment")
+print(p1)
+```
+
+```{r deseq2_w25sign_deseqnorm_w25_dn_up, echo = FALSE, message = FALSE, fig.height = 4, fig.width = 8}
+dmu.w25[, dn.up := (mu[trt == "UVB"] < mu[trt == "CON"]) &
+               (mu[trt == "UVB"] < mu[trt == "SFN"]),
+       by = Geneid]
+p2 <- ggplot(dmu.w25[dn.up == TRUE, ],
+             aes(x = trt,
+                 y = mu,
+                 group = Geneid,
+                 fill = trt)) +
+        facet_wrap(~ Geneid,
+                   scale = "free_y") +
+        geom_line(position = position_dodge(0.5)) +
+        geom_point(position = position_dodge(0.5),
+                   shape = 21,
+                   size = 3,
+                   color = "black") +
+        scale_x_discrete("") +
+        scale_y_continuous("Differentially Expressed Genes at Week 25") +
+        scale_fill_discrete("Treatment") +
+        ggtitle("Genes Downregulated by UVB")
+theme(axis.text.x = element_text(angle = 45,
+                                 hjust = 1))
+
+tiff(filename = "tmp/w25_dn_up.tiff",
+     height = 4,
+     width = 8,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+print(p2)
+graphics.off()
+
+print(p2)
+```
+
+## Did up-down-up trend persist?
+```{r deseq2_w25sign_deseqnorm_plot_all_dn_up, fig.height = 4, fig.width = 8}
+dp1.tmp <- dp1[dp1$Geneid %in% unique(dmu.w25$Geneid[dmu.w25$dn.up]), ]
+dmu.tmp <- dmu[dmu$Geneid %in% unique(dmu.w25$Geneid[dmu.w25$dn.up]), ]
+p1 <- ggplot(dp1.tmp,
+             aes(x = time,
+                 y = count,
+                 group = trt,
+                 fill = trt)) +
+  facet_wrap(~ Geneid,
+             scale = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black") +
+  geom_line(data = dmu.tmp,
+            aes(x = time,
+                y = mu,
+                group = trt,
+                colour = trt),
+            position = position_dodge(0.5),
+            alpha = 0.5,
+            size = 2) +
+  scale_x_discrete("") +
+  scale_y_continuous("DESeq-Normalized Counts") +
+  scale_fill_discrete("Treatment")
+print(p1)
+```
+
+## Heatmap for Week 25 differentially methylated genes
+```{r w25_heatmap, fig.height=8, fig.width=8}
+up.dn.w25 <- unique(as.character(dmu.w25$Geneid[dmu.w25$up.dn]))
+dn.up.w25 <- unique(as.character(dmu.w25$Geneid[dmu.w25$dn.up]))
+ll <- unique(c(up.dn.w25,
+               dn.up.w25))
+# 8 genes
+
+con_uvb_week25 <- data.table(Geneid = res_con_uvb_week25@rownames,
+                             log2FoldChange = res_con_uvb_week25@listData$log2FoldChange)
+
+sfn_uvb_week25 <- data.table(Geneid = res_sfn_uvb_week25@rownames,
+                             log2FoldChange = -res_sfn_uvb_week25@listData$log2FoldChange)
+
+t1 <- merge(con_uvb_week25[con_uvb_week25$Geneid %in% ll, ],
+            sfn_uvb_week25[sfn_uvb_week25$Geneid %in% ll, ],
+            by = "Geneid")
+colnames(t1)[2:3] <- c("Control vs. UVB",
+                       "UVB vs. SFN+UVB")
+t1 <- t1[order(t1$`Control vs. UVB`,
+               decreasing = TRUE), ]
+write.csv(t1,
+          file = "tmp/w25_sign_changes.csv",
+          row.names = FALSE)
+
+ll <- melt.data.table(data = t1,
+                      id.vars = 1,
+                      measure.vars = 2:3,
+                      variable.name = "Comparison",
+                      value.name = "Gene Expression Diff")
+ll$Comparison <- factor(ll$Comparison,
+                        levels = c("Control vs. UVB",
+                                   "UVB vs. SFN+UVB"))
+lvls <- ll[ll$Comparison == "Control vs. UVB", ]
+ll$Geneid <- factor(ll$Geneid,
+                    levels = lvls$Geneid[order(lvls$`Gene Expression Diff`)])
+
+# Add dendrogram----
+dt.dndr <- data.frame(t1[Geneid %in% levels(ll$Geneid), ])
+rownames(dt.dndr) <- dt.dndr$Gene
+dt.dndr <- dt.dndr[, -1]
+
+# Compute distances between genes----
+sampleDists <- dist(dt.dndr)
+
+# Make dendrogram data----
+dhc <- as.dendrogram(hclust(d = sampleDists),
+                     horiz = TRUE)
+ddata <- dendro_data(dhc, 
+                     type = "rectangle")
+
+# Segment data----
+dtp1 <- segment(ddata)
+
+# Hitmap data----
+dtp2 <- ll
+dtp2$Geneid <- factor(dtp2$Geneid,
+                      levels = ddata$labels$label)
+
+offset.size <- 4
+
+p1 <- ggplot(data = dtp2) +
+  coord_polar("y",
+              start = -0.3,
+              direction = -1) +
+  geom_tile(aes(x =  as.numeric(Comparison),
+                y = Geneid, 
+                fill = `Gene Expression Diff`),
+            color = "white") +
+  geom_text(data = dtp2[Comparison == "Control vs. UVB", ],
+            aes(x = rep(1.75,
+                        nlevels(Geneid)),
+                y = Geneid,
+                angle = 90 + seq(from = 120,
+                                 to = 330,
+                                 length.out = nlevels(Geneid))[as.numeric(Geneid)] + 
+                  offset.size,
+                label = unique(Geneid)),
+            hjust = 0) +
+  geom_text(data = dtp2[Geneid == levels(dtp2$Geneid)[1], ],
+            aes(x = 1:nlevels(Comparison),
+                y = rep(-offset.size,
+                        nlevels(Comparison)),
+                angle = 0,
+                label = levels(Comparison)),
+            hjust = 1,
+            size = 5) +
+  scale_fill_gradient2(low = "red", 
+                       high = "green", 
+                       mid = "grey", 
+                       midpoint = 0, 
+                       name = "") +
+  scale_y_discrete("",
+                   expand = c(0, 0)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 15),
+        legend.direction = "horizontal",
+        legend.key.width = unit(1, "in"),
+        legend.key.height = unit(0.3, "in")) +
+  geom_segment(data = dtp1,
+               aes(x = -sqrt(y) + 0.5,
+                   y = x, 
+                   xend = -sqrt(yend) + 0.5,
+                   yend = xend),
+               size = 1) 
+
+tiff(filename = "tmp/skin_ubv_w25_sfn_hitmap_with_phylo.tiff",
+     height = 8,
+     width = 8,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+plot(p1)
+graphics.off()
+
+print(p1)
+```
+
+## Venn Diagram, Week 25
+```{r w25-venn, fig.height=6,fig.width=4}
+# out of 17202 with nonzero total read count
+# 1. Ctrl vs. UVB
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 3389, 20%
+# LFC < 0 (down)     : 2917, 17%
+# 6 genes down-up-down
+
+# 2. SFN+UVB vs. UVB
+# adjusted p-value < 0.1
+# LFC > 0 (up)       : 3, 0.017%
+# LFC < 0 (down)     : 8, 0.047%
+# 2 gens up-down-up
+
+p1 <- ggplot() +
+  geom_circle(aes(x0 = c(1, 2, 1, 2),
+                  y0 = c(1, 1, 4, 4),
+                  r = rep(1, 4),
+                  color = factor(c(2, 1, 1, 2))),
+              size = 2) +
+  geom_text(aes(x = rep(c(0.5, 1.5, 2.5), 2),
+                y = rep(c(1, 4), each = 3),
+                label = format(c(3, 2, 8, 3389, 6, 2917),
+                               big.mark = ","))) +
+  scale_color_manual(values = c("green", "red")) +
+  theme_void() +
+  theme(legend.position = "none")
+
+tiff(filename = "tmp/skin_ubv_sfn_w2_venn.tiff",
+     height = 6,
+     width = 4,
+     units = 'in',
+     res = 600,
+     compression = "lzw+p")
+plot(p1)
+graphics.off()
+
+print(p1)
+```
+
+## Interactions terms, Week 15 vs. Week 2
+**NOTE**: By default, the **results(dds)*** prints the results for the last level of the last term, i.e. here it was for for the interaction term SFN vs. UVB at Week 15 vs. Week 2.    
+    
+Test if the effect of NOT treating with UVB vs. treating with UVB is different at Week 15 compared to Week 2:    
 ```{r deseq2_week2_week15_results_int_con_uvb}
-res_int_con_uvb_week <- results(dds, 
-                                name = "time15w.trtCON",
-                                alpha = 0.1)
-res_int_con_uvb_week <- res_int_con_uvb_week[order(res_int_con_uvb_week$padj,
-                                                   decreasing = FALSE),]
-print(res_int_con_uvb_week)
-summary(res_int_con_uvb_week)
+res_int_con_uvb_week2.15 <- results(dds, 
+                                    name = "time15w.trtCON",
+                                    alpha = 0.1)
+res_int_con_uvb_week2.15 <- res_int_con_uvb_week2.15[order(res_int_con_uvb_week2.15$padj,
+                                                           decreasing = FALSE),]
+print(res_int_con_uvb_week2.15)
+summary(res_int_con_uvb_week2.15)
 
-# How many adjusted p-values were less than 0.05?
-sum(res_int_con_uvb_week$padj < 0.1, 
+# How many adjusted p-values were less than 0.1?
+sum(res_int_con_uvb_week2.15$padj < 0.1, 
     na.rm = TRUE)
 
 # MA plot
-print(plotMA(res_int_con_uvb_week,
-             main = "(Control vs. UVB) x TIme Interaction",
+print(plotMA(res_int_con_uvb_week2.15,
+             main = "(Control vs. UVB) x (Week 15 vs. Week 2) Interaction",
              alpha = 0.9))
-
 ```
 
-Tests if the effect of treating with UVB+SFN vs. treating with UVB is different at Week 15 compared to Week 2:    
+Test if the effect of treating with UVB+SFN vs. treating with UVB is different at Week 15 compared to Week 2:    
 ```{r deseq2_week2_week15_results_int_sfn_uvb}
-res_int_sfn_uvb_week <- results(dds, 
-                                name = "time15w.trtSFN",
-                                alpha = 0.1)
-res_int_sfn_uvb_week <- res_int_sfn_uvb_week[order(res_int_sfn_uvb_week$padj,
-                                                   decreasing = FALSE),]
-print(res_int_sfn_uvb_week)
-summary(res_int_sfn_uvb_week)
+res_int_sfn_uvb_week2.15 <- results(dds, 
+                                    name = "time15w.trtSFN",
+                                    alpha = 0.1)
+res_int_sfn_uvb_week2.15 <- res_int_sfn_uvb_week2.15[order(res_int_sfn_uvb_week2.15$padj,
+                                                           decreasing = FALSE),]
+print(res_int_sfn_uvb_week2.15)
+summary(res_int_sfn_uvb_week2.15)
 
-# How many adjusted p-values were less than 0.05?
-sum(res_int_sfn_uvb_week$padj < 0.1, 
+# How many adjusted p-values were less than 0.1?
+sum(res_int_sfn_uvb_week2.15$padj < 0.1, 
     na.rm = TRUE)
 
 # MA plot
-print(plotMA(res_int_sfn_uvb_week))
-
-# NOTE: same as 
-# res <- results(dds, 
-#                   alpha = 0.05)
-# res <- res[order(res$padj, decreasing = FALSE),]
-# res
+print(plotMA(res_int_sfn_uvb_week2.15,
+             main = "(UVB+SFN vs. UVB) x (Week 15 vs. Week 2) Interaction",
+             alpha = 0.9))
 ```
 
-**NOTE**: By default, the **results(dds)*** prints the results for the last level of the last term, i.e. here it was for for the interaction term SFN vs. UVB at Week 15 vs. Week 2.
-       
-# Genes with both interactions being significant
-```{r sign_int}
-lgene.con <- unique(res_int_con_uvb_week@rownames[res_int_con_uvb_week$padj < 0.1])
-lgene.sfn <- unique(res_int_sfn_uvb_week@rownames[res_int_sfn_uvb_week$padj < 0.1])
+Genes with both interactions being significant:
+```{r w15_w2_sign_int}
+lgene.con <- unique(res_int_con_uvb_week2.15@rownames[res_int_con_uvb_week2.15$padj < 0.1])
+lgene.sfn <- unique(res_int_sfn_uvb_week2.15@rownames[res_int_sfn_uvb_week2.15$padj < 0.1])
 lgene <- lgene.con[lgene.con %in% lgene.sfn]
 lgene <- lgene[!is.na(lgene)]
 lgene
@@ -1456,7 +1877,7 @@ lgene
 
        
 Plot of DESeq-normalizedcounts of genes with smallest adjusted p-value for the interaction term:     
-```{r deseq2_week2_week15_top9_deseqnorm, fig.height = 6, fig.width = 8}
+```{r deseq2_week2_week15_deseqnorm, fig.height = 6, fig.width = 8}
 # Get the DESeq-normalize counts
 dp1 <- list()
 for (i in 1:length(lgene)) {
@@ -1476,9 +1897,11 @@ dp1$trt <- factor(dp1$trt,
                              "SFN"))
 dp1$time <- factor(dp1$time,
                    levels = c("02w",
-                              "15w"),
+                              "15w",
+                              "25w"),
                    labels = c("Week 2",
-                              "Week 15"))
+                              "Week 15",
+                              "Week 25"))
 dp1$Geneid <- factor(dp1$Geneid,
                      levels = lgene)
 dp1[, mu := mean(count,
@@ -1542,6 +1965,119 @@ p1 <- ggplot(tmp,
              color = "black")+
   scale_x_discrete("")
 plot(p1)
+```
+
+## Interactions terms, Week 25 vs. Week 2
+Test if the effect of NOT treating with UVB vs. treating with UVB is different at Week 25 compared to Week 2:    
+```{r deseq2_week2_week25_results_int_con_uvb}
+res_int_con_uvb_week2.25 <- results(dds, 
+                                    name = "time25w.trtCON",
+                                    alpha = 0.1)
+res_int_con_uvb_week2.25 <- res_int_con_uvb_week2.25[order(res_int_con_uvb_week2.25$padj,
+                                                           decreasing = FALSE),]
+print(res_int_con_uvb_week2.25)
+summary(res_int_con_uvb_week2.25)
+
+# How many adjusted p-values were less than 0.1?
+sum(res_int_con_uvb_week2.25$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+print(plotMA(res_int_con_uvb_week2.25,
+             main = "(Control vs. UVB) x (Week 25 vs. Week 2) Interaction",
+             alpha = 0.9))
+```
+
+
+Test if the effect of treating with UVB+SFN vs. treating with UVB is different at Week 25 compared to Week 25:    
+```{r deseq2_week2_week25_results_int_sfn_uvb}
+res_int_sfn_uvb_week2.25 <- results(dds, 
+                                    name = "time25w.trtSFN",
+                                    alpha = 0.1)
+res_int_sfn_uvb_week2.25 <- res_int_sfn_uvb_week2.25[order(res_int_sfn_uvb_week2.25$padj,
+                                                           decreasing = FALSE),]
+print(res_int_sfn_uvb_week2.25)
+summary(res_int_sfn_uvb_week2.25)
+
+# How many adjusted p-values were less than 0.1?
+sum(res_int_sfn_uvb_week2.25$padj < 0.1, 
+    na.rm = TRUE)
+
+# MA plot
+print(plotMA(res_int_sfn_uvb_week2.25,
+             main = "(UVB+SFN vs. UVB) x (Week 25 vs. Week 2) Interaction",
+             alpha = 0.9))
+```
+
+Genes with both interactions being significant:
+```{r w25_w2_sign_int}
+lgene.con <- unique(res_int_con_uvb_week2.25@rownames[res_int_con_uvb_week2.25$padj < 0.1])
+lgene.sfn <- unique(res_int_sfn_uvb_week2.25@rownames[res_int_sfn_uvb_week2.25$padj < 0.1])
+lgene <- lgene.con[lgene.con %in% lgene.sfn]
+lgene <- lgene[!is.na(lgene)]
+lgene
+```
+
+       
+Plot of DESeq-normalizedcounts of genes with smallest adjusted p-value for the interaction term:     
+```{r deseq2_week2_week25_deseqnorm, fig.height = 4, fig.width = 8}
+# Get the DESeq-normalize counts
+dp1 <- list()
+for (i in 1:length(lgene)) {
+  out <- plotCounts(dds, 
+                    gene = lgene[[i]],
+                    intgroup = c("trt",
+                                 "time"),
+                    returnData = TRUE)
+  dp1[[i]] <- data.table(Geneid = lgene[[i]],
+                         Sample = rownames(out),
+                         out)
+}
+dp1 <- rbindlist(dp1)
+dp1$trt <- factor(dp1$trt,
+                  levels = c("CON",
+                             "UVB",
+                             "SFN"))
+dp1$time <- factor(dp1$time,
+                   levels = c("02w",
+                              "15w",
+                              "25w"),
+                   labels = c("Week 2",
+                              "Week 15",
+                              "Week 25"))
+dp1$Geneid <- factor(dp1$Geneid,
+                     levels = lgene)
+dp1[, mu := mean(count,
+                 na.rm = TRUE),
+    by = c("Geneid",
+           "trt",
+           "time")]
+dmu <- unique(dp1[, -c("Sample",
+                       "count")])
+
+p1 <- ggplot(dp1,
+             aes(x = time,
+                 y = count,
+                 group = trt,
+                 fill = trt)) +
+  facet_wrap(~ Geneid,
+             scale = "free_y") +
+  geom_point(position = position_dodge(0.5),
+             shape = 21,
+             size = 5,
+             color = "black") +
+  geom_line(data = dmu,
+            aes(x = time,
+                y = mu,
+                group = trt,
+                colour = trt),
+            position = position_dodge(0.5),
+            alpha = 0.5,
+            size = 2) +
+  scale_x_discrete("") +
+  scale_y_continuous("DESeq-Normalized Counts") +
+  scale_fill_discrete("Treatment")
+print(p1)
 ```
 
 # Session Information
